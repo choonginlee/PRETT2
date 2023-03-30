@@ -1,3 +1,7 @@
 server_keys
 viogram/diagram
 viogram/ptmsg_log
+*.pyc
+viogram/*.txt
+
+diagram*
