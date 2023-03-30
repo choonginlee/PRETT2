@@ -1,0 +1,58 @@
+# nginx (1.23.1) setting and running
+
+
+// NGINX INSTALLATION
+
+$ sudo apt-get update
+
+$ sudo apt-get -y install build-essential curl
+$ sudo apt-get -y install libpcre3-dev zlib1g-dev libssl1.0-dev
+
+$ sudo ./configure --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid --with-http_ssl_module --with-stream --with-mail=dynamic --with-cc-opt="-g" --with-debug --with-http_v2_module
+
+$ sudo make
+$ sudo make install
+
+
+// SSL ISSUANCE
+
+ref : https://codens.info/1805
+1. generate localhost.conf
+	change name in commonName_default and DNS.1 to localhost
+2. generate localhost.key and localhost.crt
+	$ mv ~/serverset
+	$ sudo openssl req -config localhost.conf -new -sha256 -newkey rsa:2048 -nodes -keyout localhost.key -x509 -days 365 -out localhost.crt
+	$ enters...
+
+
+// SSL Setting
+
+- change nginx.conf (/usr/local/nginx/nginx.conf)
+	line 99 to '443 ssl http2'
+	line 100 to 'localhost'
+	line 102 to '/home/lee2/serverset/localhost.crt;'
+	line 103 to '/home/lee2/serverset/localhost.key;'
+	de-omit lines 98-115
+
+// nginx Starting
+$ sudo /usr/local/nginx/nginx
+$ sudo curl -k -I https://localhost
+
+- The output:
+HTTP/2 200 
+server: nginx/1.23.1
+date: Thu, 21 Jul 2022 10:54:37 GMT
+content-type: text/html
+content-length: 615
+last-modified: Thu, 21 Jul 2022 10:13:17 GMT
+etag: "62d926bd-267"
+accept-ranges: bytes
+
+// ngix Stopping
+$ sudo /usr/local/nginx/nginx -s stop
+
+
+// additional setting
+
+- change nginx.conf (/usr/local/nginx/nginx.conf)
+	line 31 to keepalive_timeout  10; (changing 65 -> 10)
