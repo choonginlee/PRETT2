@@ -24,43 +24,47 @@ def modeller_h2(http2_basic_messages, dst_ip):
 	while True: # for each level
 		if len(pm.state_list.get_states_by_level(pm.current_level)) == 0:
 			break
-
-		stime_in_level = time.time()
-		print("  [+]  State expansion start in level %d. (%s)" % (pm.current_level, time.ctime(stime_in_level)))
+		print("  [+] --- Starting level %d ---" % (pm.current_level))
+		logger.info("  [+] --- Starting level %d ---" % (pm.current_level))
 
 		### Expanding ###
+		print("  [+] State expansion start in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
+		logger.info("  [+]  tate expansion start in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
 		pm.is_pruning = False
-		# Retrieve valid leaf states from previous level (for level 1, it is the initial state '0')
+		# Retrieve valid states of previous level (unique states in prev. level so far) (for level 1, it is the initial state '0')
 		leaf_states = pm.state_list.get_states_by_level(pm.current_level)
-
 		stma.expand_sm(pm, sm, leaf_states) 
+		print("  [+] State expansion end in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
+		logger.info("  [+] State expansion end in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
 
-		print("  [+]  State expansion end in level %d. Start minimizing ... (%s)" % (pm.current_level, time.ctime(stime_in_level)))
+		pm.state_list.print_states()
+		pm.state_list.print_candidate_states()
 
 		### Pruning ###
+		print("  [+] State minimization start in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
+		logger.info("  [+] State minimization start in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
 		is_pruning = True
 		stma.minimize_sm(pm, sm)
-		
-		elapsed_time = time.time() - g_start_time
+		print("  [+] State minimization end in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
+		logger.info("  [+] State minimization end in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
+
+		### Graph drawing ###
 		graphname = "diagram/level_" + str(pm.current_level) + ".png"
 		sm.get_graph().draw(graphname, prog='dot')
 
+		### Finishing current level ... ###
+		elapsed_time = time.time() - g_start_time
 		pm.current_level = pm.current_level + 1
-		print ("[+] Level %d |" % (pm.current_level), "Time Elapsed :", elapsed_time, "s")
-		print ("[+] Move to level : %s \n" % str(pm.current_level))
-
-		# break
+		print("  [+] --- Finished level %d ---" % (pm.current_level) + "Time elapsed : %s sec" % time.ctime(elapsed_time))
+		logger.info("  [+] --- Finished level %d ---" % (pm.current_level), "Time elapsed : %s sec", time.ctime(elapsed_time))
 
 	elapsed_time = time.time() - g_start_time
-	print ("Total elapsed time : ", elapsed_time, "\n")
+	print ("[+] All jobs done. Total elapsed time is ", elapsed_time)
 	# Program normally ends.
 	# pm.model.graph.draw("diagram/prune_bfs_state_fin.png", prog='dot')
 	# f.close()
 	pm.get_graph().draw("diagram/prune_bfs_state_fin.png", prog='dot')
-	logger.info(transition_info)
-	img = mplotimg.imread("diagram/prune_bfs_state_fin.png")
-	plt.imshow(img)
-	plt.show()
+	logger.info(pm.transition_info)
 	sys.exit()
 
 
@@ -125,7 +129,7 @@ def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
 		ssl_sock.connect((pm.dst_ip, 443))
 
 	assert('h2' == ssl_sock.selected_alpn_protocol())
-	print("    [DEBUG] Testing.... Wait for response.")
+	print("    [+] Testing.... Wait for response.")
 
 	scapy.config.conf.debug_dissector = True
 

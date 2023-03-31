@@ -28,7 +28,7 @@ def init():
 	sys.stdout = Tee(sys.stdout, f)
 
 	dst_ip = sys.argv[1]
-	pcapfile = './pcapFile/http2_decrypted_http2Out.pcapng'
+	pcapfile = './pcapFile/apache_http2.pcapng'
 
 	print("  [+] Initializing done!\n    => pcap : %s, dst_ip : %s" % (pcapfile, dst_ip))
 	return dst_ip, pcapfile

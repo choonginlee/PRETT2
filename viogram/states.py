@@ -1,9 +1,8 @@
 class State:
-	def __init__(self, numb, level, parent_node = None, spyld=None, h2msg_sent = None, rpyld=None, h2msg_rcvd=None, elapsedTime = 0, group=None, child_sr_dict=None, is_abnormal=False):
-		self.numb = numb
+	def __init__(self, name, level, parent_state = None, spyld=None, h2msg_sent = None, rpyld=None, h2msg_rcvd=None, elapsedTime = 0, group=None, child_sr_dict=None, is_abnormal=False):
+		self.name = name
 		self.level = level
-		# parent_node state
-		self.parent_node = parent_node
+		self.parent_state = parent_state
 		# send h2 sequence
 		self.h2msg_sent = h2msg_sent
 		# response h2 sequence
@@ -22,41 +21,58 @@ class State:
 		return self.isAbnormal
 
 class StateList:
-	def __init__(self, state_list=[], vc_list=[], ivc_list=[]):
+	def __init__(self, state_list=[]):
 		self.state_list = state_list
-		self.vc_list = vc_list # valid candidates to be added to sm
-		self.ivc_list = ivc_list # invalid candidates NOT to be add to sm
 
 	def add_state(self, state):
 		self.state_list.append(state)
 
+	def add_candidate_state(self, state):
+		self.candidate_state_list.append(state)
+
+	def add_alive_state(self, state):
+		self.alive_state_list.append(state)
+
 	def remove_state(self, state):
 		self.state_list.remove(state)
 
-	def get_state_by_num(self, numb):
+	def get_state_by_name(self, name):
 		for state in self.state_list:
-			if state.numb == numb:
+			if state.name == name:
 				return state
-		return None
+		for state in self.candidate_state_list:
+			if state.name == name:
+				return state
+
+	def get_candidate_states(self):
+		return self.candidate_state_list
+
+	def get_alive_states(self):
+		return self.alive_state_list
 
 	def get_states_by_level(self, level):
 		states_list = []
 		for state in self.state_list:
 			if state.level == level:
-				states_list.append(state.numb)
+				states_list.append(state)
 		return states_list
 
 	def get_valid_states_by_level(self, level):
 		states_list = []
 		for state in self.state_list:
 			if state.level == level and int(state.elapsedTime) > 0 :
-				states_list.append(state.numb)
+				states_list.append(state)
 		return states_list
 
-	def print_state(self):
+	def print_states(self):
 		print("state list length : " + str(len(self.state_list)))
 		for state in self.state_list:
-			print(state.numb)
+			print(state.name)
+
+	def print_candidate_states(self):
+		print("candidate state list length : " + str(len(self.candidate_state_list)))
+		for state in self.candidate_state_list:
+			print(state.name)
 
 	def print_payloadPair(self):
 		print("State list length : " + str(len(self.state_list)))

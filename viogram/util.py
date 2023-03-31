@@ -48,9 +48,13 @@ def h2msg_from_pcap(f):
 	with open(f, 'rb') as f:
 		pcapng = dpkt.pcapng.Reader(f)
 		frameid = 1
+		has_magic = True
 		for timestamp, buf in pcapng: # for each http2 message
 			h2msg = h2.H2Seq()
 			http2raw = buf[64:]
+			if has_magic:
+				http2raw = http2raw[24:]
+				has_magic = False
 			try:
 				frames, i = dpkt.http2.frame_multi_factory(http2raw, False)
 				for frame in frames: # for each frame in a message
