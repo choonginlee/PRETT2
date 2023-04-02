@@ -5,7 +5,7 @@ def abnormal_checker(pm, self_state, vs_payload, parent_state_no):
 	isAbnormal = ""
 	vs_payload_arr = vs_payload.split('/')
 	sent_frame_seq = vs_payload_arr[0]
-	parent_state = pm.state_list.get_state_by_num(parent_state_no)
+	parent_state = pm.state_list.get_state_by_name(parent_state_no)
 	# based on RFC 7541 response code index     
 		  # | 8     | :status                     | 200           |
 	   #    | 9     | :status                     | 204           |
@@ -25,7 +25,7 @@ def abnormal_checker(pm, self_state, vs_payload, parent_state_no):
 	print("[+] abnormal check in state : %s, payload : %s" % (self_state, sent_frame_seq))
 	
 	# if parent is abnormal, son == abnormal
-	if parent_state.get_is_abnormal() == True:
+	if parent_state.is_abnormal() == True:
 		self_state.set_abnormal()
 		isAbnormal = " parent ab"
 		print("[+] abnormal reason : %s" % isAbnormal)

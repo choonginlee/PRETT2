@@ -14,7 +14,6 @@ PRETT/2 is an automated protocol modeler for HTTP/2 servers.
 - sudo pip install matplotlib
 - sudo pip install pygraphviz
 
-
 ## How To Run
 
 - specify timeout of server both in server configuration and ProtoModel class in statemachine.py.

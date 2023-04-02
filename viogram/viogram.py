@@ -1,17 +1,11 @@
 #! /usr/bin/env python
-from util import *
-from modeller_h2 import *
-from validator_h2 import *
+import util
+import modeller_h2
 
 import os
 import sys
-import pickle
 import logging
-import json
-import matplotlib.pyplot as plt
-import matplotlib.image as mplotimg
-import scapy.config
-import scapy.packet as packet
+
 
 def init():
 	print("\n[STEP 1] Initializing...")
@@ -25,7 +19,7 @@ def init():
 	# Setting for logging
 	logging.basicConfig(level=logging.DEBUG, filename="ptmsg_log", filemode="a+", format="%(asctime)-15s %(levelname)-8s %(message)s")
 	f = open('http2_PRE_logging.txt', 'w')
-	sys.stdout = Tee(sys.stdout, f)
+	sys.stdout = util.Tee(sys.stdout, f)
 
 	dst_ip = sys.argv[1]
 	pcapfile = './pcapFile/http2_decrypted_http2Out.pcapng'
@@ -47,10 +41,10 @@ if __name__ == "__main__":
 	dst_ip, pcapfile = init()
 	
 	### Extract initial state machine ###
-	http2_basic_messages = h2msg_from_pcap(pcapfile)
+	http2_basic_messages = util.h2msg_from_pcap(pcapfile)
 
 	### Construct reverse engineering for HTTP/2
-	sm = modeller_h2(http2_basic_messages, dst_ip)
+	sm = modeller_h2.modeller_h2(http2_basic_messages, dst_ip)
 
 	### Convert state machine to CFG
 
