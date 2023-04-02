@@ -1,5 +1,6 @@
 class State:
-	def __init__(self, name, level, parent_state = None, spyld=None, h2msg_sent = None, rpyld=None, h2msg_rcvd=None, elapsedTime = 0, group=None, child_sr_dict=None, is_abnormal=False):
+	def __init__(self, name, level, parent_state=None, spyld=None, h2msg_sent=None, rpyld=None, h2msg_rcvd=None,
+				 elapsedTime=0, child_sr_dict=None, is_abnormal=False):
 		self.name = name
 		self.level = level
 		self.parent_state = parent_state
@@ -9,7 +10,6 @@ class State:
 		self.h2msg_rcvd = h2msg_rcvd
 		# connection TTL time after receiving a response (to reach itself)
 		self.elapsedTime = elapsedTime
-		self.group = group
 		self.child_sr_dict = child_sr_dict
 		# security violation checking variable
 		self.isAbnormal = is_abnormal
@@ -17,7 +17,7 @@ class State:
 	def set_abnormal(self):
 		self.isAbnormal = True
 
-	def get_is_abnormal(self):
+	def is_abnormal(self):
 		return self.isAbnormal
 
 class StateList:
@@ -27,12 +27,6 @@ class StateList:
 	def add_state(self, state):
 		self.state_list.append(state)
 
-	def add_candidate_state(self, state):
-		self.candidate_state_list.append(state)
-
-	def add_alive_state(self, state):
-		self.alive_state_list.append(state)
-
 	def remove_state(self, state):
 		self.state_list.remove(state)
 
@@ -40,15 +34,6 @@ class StateList:
 		for state in self.state_list:
 			if state.name == name:
 				return state
-		for state in self.candidate_state_list:
-			if state.name == name:
-				return state
-
-	def get_candidate_states(self):
-		return self.candidate_state_list
-
-	def get_alive_states(self):
-		return self.alive_state_list
 
 	def get_states_by_level(self, level):
 		states_list = []
@@ -57,29 +42,19 @@ class StateList:
 				states_list.append(state)
 		return states_list
 
-	def get_valid_states_by_level(self, level):
-		states_list = []
-		for state in self.state_list:
-			if state.level == level and int(state.elapsedTime) > 0 :
-				states_list.append(state)
-		return states_list
-
-	def print_states(self):
+	def print_state_list(self):
+		tmplist = []
 		print("state list length : " + str(len(self.state_list)))
-		for state in self.state_list:
-			print(state.name)
-
-	def print_candidate_states(self):
-		print("candidate state list length : " + str(len(self.candidate_state_list)))
-		for state in self.candidate_state_list:
-			print(state.name)
+		for s in self.state_list:
+			tmplist.append(s.name)
+		print(tmplist)
 
 	def print_payloadPair(self):
 		print("State list length : " + str(len(self.state_list)))
 		for state in self.state_list:
-			print ("Sent payload : "+str(state.spyld))
+			print("State name : %s" % state.name)
+			print("Sent payload : " + str(state.spyld))
 			print ("Receive payload : "+str(state.rpyld))
-			print("")
 
 	def get_allElapsedTime_by_level(self, level):
 		elapsedTimeArr = []

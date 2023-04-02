@@ -29,16 +29,16 @@ def modeller_h2(http2_basic_messages, dst_ip):
 
 		### Expanding ###
 		print("  [+] State expansion start in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
-		logger.info("  [+]  tate expansion start in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
+		logger.info("  [+]  State expansion start in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
 		pm.is_pruning = False
 		# Retrieve valid states of previous level (unique states in prev. level so far) (for level 1, it is the initial state '0')
 		leaf_states = pm.state_list.get_states_by_level(pm.current_level)
-		stma.expand_sm(pm, sm, leaf_states) 
+		stma.expand_sm(pm, sm, leaf_states)
 		print("  [+] State expansion end in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
 		logger.info("  [+] State expansion end in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
 
-		pm.state_list.print_states()
-		pm.state_list.print_candidate_states()
+		pm.state_list.print_state_list()
+		pm.candidate_state_list.print_state_list()
 
 		### Pruning ###
 		print("  [+] State minimization start in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
@@ -55,8 +55,9 @@ def modeller_h2(http2_basic_messages, dst_ip):
 		### Finishing current level ... ###
 		elapsed_time = time.time() - g_start_time
 		pm.current_level = pm.current_level + 1
-		print("  [+] --- Finished level %d ---" % (pm.current_level) + "Time elapsed : %s sec" % time.ctime(elapsed_time))
-		logger.info("  [+] --- Finished level %d ---" % (pm.current_level), "Time elapsed : %s sec", time.ctime(elapsed_time))
+		pm.candidate_state_list.state_list = []  # clear candidate state list
+		print("  [+] --- Finished level %d | " % (pm.current_level) + "Time elapsed %s ---" % elapsed_time)
+		logger.info("  [+] --- Finished level %d | " % (pm.current_level) + "Time elapsed %s ---" % elapsed_time)
 
 	elapsed_time = time.time() - g_start_time
 	print ("[+] All jobs done. Total elapsed time is ", elapsed_time)
@@ -129,7 +130,7 @@ def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
 		ssl_sock.connect((pm.dst_ip, 443))
 
 	assert('h2' == ssl_sock.selected_alpn_protocol())
-	print("    [+] Testing.... Wait for response.")
+	# print("    [+] Testing.... Wait for response.")
 
 	scapy.config.conf.debug_dissector = True
 
@@ -231,18 +232,28 @@ def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
 	while True:
 		try:
 			sniff_frame = None
-			sniff_frame = ss.sniff(timeout=600, filter = ssl_bpf, count = 1)
+			sniff_frame = ss.sniff(timeout=600, filter=ssl_bpf, count=1)
 			new_frame = sniff_frame[0]
 			# new_frame.show()
 			endTime = time.time()
 			elapsedTime = endTime - startTime
-			h2msg_rcvd_short.append(stma.frameInfoArr[new_frame.type])
+			elapsedTime = int(elapsedTime)
+			if (pm.timeout - elapsedTime) == 1:
+				# print("timeout set to %d" % pm.timeout)
+				elapsedTime = pm.timeout
+			# h2msg_rcvd_short.append(util.frameInfoArr[new_frame.type])
+
+			# IMPORTANT :: Handling multiple SETTINGS frames received
+			# Empirically, multiple SETTINGS frames are accumulated as states go deep
+			if new_frame.type == h2.H2SettingsFrame.type_id:
+				if len(h2msg_rcvd.frames) > 1 and h2msg_rcvd.frames[-1].type == h2.H2SettingsFrame.type_id:
+					continue
 			h2msg_rcvd.frames.append(new_frame)
 
 			if int(elapsedTime) >= 600:
 				elapsedTime = -2
-				break 
-			
+				break
+
 			if new_frame.type == h2.H2GoAwayFrame.type_id or new_frame.type == h2.H2ResetFrame.type_id:
 				# print("    [D] Received GoAway / Reset. (EC : %d)" % new_frame.error)
 				break
@@ -258,7 +269,8 @@ def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
 
 	# print("  == send_receive_http2() summary ==")
 	# print("  == (Moving frame) - Test Frame / Receive Frame")
-	print("    => (%s) - %s / %s " % (util.h2msg_to_str(move_state_h2msgs), util.h2msg_to_str(h2msg_send), h2msg_rcvd_short))
+	print("    => (%s) - %s / %s " % (
+	util.h2msg_to_str(move_state_h2msgs), util.h2msg_to_str(h2msg_send), util.h2msg_to_str(h2msg_rcvd)))
 	print("    => (%d) sec" % elapsedTime)
 	# print("  ==================================")
 

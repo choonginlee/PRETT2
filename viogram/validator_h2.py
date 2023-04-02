@@ -25,7 +25,7 @@ def abnormal_checker(pm, self_state, vs_payload, parent_state_no):
 	print("[+] abnormal check in state : %s, payload : %s" % (self_state, sent_frame_seq))
 	
 	# if parent is abnormal, son == abnormal
-	if parent_state.get_is_abnormal() == True:
+	if parent_state.is_abnormal() == True:
 		self_state.set_abnormal()
 		isAbnormal = " parent ab"
 		print("[+] abnormal reason : %s" % isAbnormal)
