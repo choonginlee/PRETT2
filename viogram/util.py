@@ -60,12 +60,11 @@ def h2msg_from_pcap(f):
     with open(f, 'rb') as f:
         pcapng = rdpcap(f)
         frameid = 1
-        has_magic = True
         for buf in pcapng:  # for each http2 message
             http2raw = buf.load[64:]
-            if has_magic:
-                http2raw = http2raw[24:]
-                has_magic = False
+            # handle magic
+            if http2raw[:24] == b'\x50\x52\x49\x20\x2a\x20\x48\x54\x54\x50\x2f\x32\x2e\x30\x0d\x0a\x0d\x0a\x53\x4d\x0d\x0a\x0d\x0a':
+                http2raw = http2raw[24:] 
             tmpseq = h2.H2Seq(http2raw)
             h2msg_arr.append(tmpseq)
             frameid += 1
