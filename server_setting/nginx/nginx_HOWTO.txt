@@ -9,17 +9,16 @@ $ sudo apt-get -y install libpcre3-dev zlib1g-dev libssl1.0-dev
 
 // For nginx 1.14.2 in Ubuntu 22, use openssl 1.1.1j
 
+$ sudo wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+$ sudo tar -xzf openssl-1.1.1l.tar.gz 
+$ cd openssl-1.1.1l/
+./config --prefix=/usr/local/openssl_1_1_1j --openssldir=/usr/local/$ openssl_1_1_1j/ssl
+sudo ./config --prefix=/usr/local/openssl_1_1_1j --openssldir=/usr/local/$ openssl_1_1_1j/ssl
+$ sudo make
+$ sudo make install
 
-sudo wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-sudo  tar -xzf openssl-1.1.1l.tar.gz 
-cd openssl-1.1.1l/
-./config --prefix=/usr/local/openssl_1_1_1j --openssldir=/usr/local/openssl_1_1_1j/ssl
-sudo ./config --prefix=/usr/local/openssl_1_1_1j --openssldir=/usr/local/openssl_1_1_1j/ssl
-sudo make
-sudo make install
-export PATH="/usr/local/openssl_1_1_1j/bin:$PATH" LD_LIBRARY_PATH="/usr/local/openssl_1_1_1j/lib:$LD_LIBRARY_PATH"
-export PKG_CONFIG_PATH=/usr/local/openssl_1_1_1j/lib/pkgconfig
-sudo ./configure --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid --with-http_ssl_module --with-stream --with-mail=dynamic --with-cc-opt="-g" --with-debug --with-http_v2_module --with-openssl=/usr/local/openssl_1_1_1j/lib
+// Specify --with-openssl to openssl source directory 
+$ sudo ./configure --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid --with-http_ssl_module --with-stream --with-mail=dynamic --with-cc-opt="-g" --with-debug --with-http_v2_module --with-openssl=/home/oren/PRETT2/server_setting/nginx/openssl-1.1.1l
 
 $ sudo make
 $ sudo make install
