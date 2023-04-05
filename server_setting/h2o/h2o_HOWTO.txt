@@ -1,0 +1,79 @@
+h2o_HOWTO.txt
+
+// H2O INSTALLATION
+
+$ sudo apt-get update
+$ sudo apt-get -y install cmake
+$ mkdir -p build
+$ cd build
+$ cmake ..
+$ make
+$ sudo make install
+
+
+// SSL ISSUANCE
+
+ref : https://codens.info/1805
+1. generate localhost.conf
+	change name in commonName_default and DNS.1 to localhost
+2. generate localhost.key and localhost.crt
+	$ mv ~/serverset
+	$ sudo openssl req -config localhost.conf -new -sha256 -newkey rsa:2048 -nodes -keyout localhost.key -x509 -days 365 -out localhost.crt
+	$ enters...
+
+
+// make /etc/h2oconf.conf
+
+hosts:
+  "example.com":
+    listen:
+      port: 443
+      ssl:
+        certificate-file: /home/oren/PRETT2/server_keys/localhost.crt
+        key-file: /home/oren/PRETT2/server_keys/localhost.key
+    paths:
+      "/":
+        file.dir: htdocs/site1
+      "/icons":
+        file.dir: icons
+        expires: 1 day
+  "example.com:80":
+    listen:
+      port: 80
+    paths:
+      "/":
+        redirect: "https://example.com/"
+
+
+// h2o Starting
+$ sudo /usr/local/bin/h2o -c /etc/h2oconf.conf
+$ sudo curl -k -I https://localhost
+
+- The output:
+HTTP/2 404 
+server: h2o/2.2.4
+date: Wed, 05 Apr 2023 21:00:01 GMT
+content-type: text/plain; charset=utf-8
+content-length: 9
+
+
+// h2o Stopping
+- Just ctrl + c
+
+
+// additional setting
+ 
+In /usr/local/httpd2/conf/httpd.conf ...
+
+- find & erase 4 comments below
+LoadModule ssl_module modules/mod_ssl.so 
+LoadModule http2_module modules/mod_http2.so
+LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
+Include conf/extra/httpd-ssl.conf
+
+- add below
+<IfModule http2_module> 
+  ProtocolsHonorOrder On
+  Protocols h2 h2c http/1.1
+</IfModule>
+

@@ -23,9 +23,11 @@ $ sudo ./configure --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/ngi
 $ sudo make
 $ sudo make install
 
+// For installing NGINX 1.14.0 in Ubuntu 22
+- install gcc 7 with update-alternatives
+- erase salt something
 
 // SSL ISSUANCE
-
 ref : https://codens.info/1805
 1. generate localhost.conf
 	change name in commonName_default and DNS.1 to localhost
@@ -36,7 +38,6 @@ ref : https://codens.info/1805
 
 
 // SSL Setting
-
 - change nginx.conf (/usr/local/nginx/nginx.conf)
 	line 99 to '443 ssl http2'
 	line 100 to 'localhost'
@@ -60,7 +61,6 @@ accept-ranges: bytes
 
 // ngix Stopping
 $ sudo /usr/local/nginx/nginx -s stop
-
 
 // additional setting
 - change nginx.conf (/usr/local/nginx/nginx.conf)
