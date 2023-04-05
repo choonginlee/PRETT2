@@ -63,6 +63,9 @@ $ sudo /usr/local/nginx/nginx -s stop
 
 
 // additional setting
-
 - change nginx.conf (/usr/local/nginx/nginx.conf)
-	line 31 to keepalive_timeout  10; (changing 65 -> 10)
+	line 31 to keepalive_timeout  10s; (changing 65 -> 10)
+
+- for Nginx <1.19.7 
+	line 31 to http2_idle_timeout 10s; (disable keepalive_timeout)
+	line 107 add http2_recv_timeout 10s;
