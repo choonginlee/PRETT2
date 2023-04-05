@@ -1,0 +1,307 @@
+  [+] Initializing done!
+    => pcap : ./pcapFile/nginx_1.14.2_firefox_111.0.1.pcapng, dst_ip : localhost
+
+[STEP 2] Parsing http2 messages from pcapfile ./pcapFile/nginx_1.14.2_firefox_111.0.1.pcapng ...
+  [+] Parsing done! (Total 5 messages.)
+  [DBG] messages (shortened)
+    [ ] h2msg 1: SE-WI 
+    [ ] h2msg 2: SE-WI-PR-PR-PR-PR-PR-PR 
+    [ ] h2msg 3: SE 
+    [ ] h2msg 4: SE 
+    [ ] h2msg 5: GO 
+
+[STEP 3] Modeling started at Mon Apr  3 14:25:11 2023
+  [+] --- Starting level 1 ---
+  [+] State expansion start in level 1. (Mon Apr  3 14:25:11 2023)
+  [EXPANSION-LEAF] Expanding leaf state init (1/1 leaves)
+    [EXPANSION-STATE-'init'] move Frame: , send Frame: SE-WI (1/5 msgs)
+    => () - SE-WI / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 1 added (init -> 1)
+    [EXPANSION-STATE-'init'] move Frame: , send Frame: SE-WI-PR-PR-PR-PR-PR-PR (2/5 msgs)
+    => () - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 2 added (init -> 2)
+    [EXPANSION-STATE-'init'] move Frame: , send Frame: SE (3/5 msgs)
+    => () - SE / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 3 added (init -> 3)
+    [EXPANSION-STATE-'init'] move Frame: , send Frame: SE (4/5 msgs)
+    => () - SE / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 4 added (init -> 4)
+    [EXPANSION-STATE-'init'] move Frame: , send Frame: GO (5/5 msgs)
+    => () - GO / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 5 added (init -> 5)
+  [+] State expansion end in level 1. (Mon Apr  3 14:26:01 2023)
+state list length : 1
+['init']
+state list length : 5
+['1', '2', '3', '4', '5']
+  [+] State minimization start in level 1. (Mon Apr  3 14:26:01 2023)
+  [INFO] Test 5 candidate states in level 1
+  [MINIMIZATION-STATE 1] Retrieving its SR dict
+    => (SE-WI) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 1] Testing with its parent state init ... 
+  [MINIMIZATION-STATE 1] -> Different from parent init. Now check with sibling nodes ...
+  [MINIMIZATION-STATE 1] -> Different from siblings, Now check with relative nodes ...
+  [MINIMIZATION-STATE 1] -> **** Unique state 1 found ****
+  [MINIMIZATION-STATE 2] Retrieving its SR dict
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 2] Testing with its parent state init ... 
+  [MINIMIZATION-STATE 2] -> Different from parent init. Now check with sibling nodes ...
+  [MINIMIZATION-STATE 2] -> Different from siblings, Now check with relative nodes ...
+  [MINIMIZATION-STATE 2] -> **** Unique state 2 found ****
+  [MINIMIZATION-STATE 3] Retrieving its SR dict
+    => (SE) - SE-WI / SE-WI-SE-GO 
+    => (10) sec
+    => (SE) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    => (SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 3] Testing with its parent state init ... 
+  [MINIMIZATION-STATE 3] Same as parent state init. Merge with its parent
+  [MINIMIZATION-STATE 4] Retrieving its SR dict
+    => (SE) - SE-WI / SE-WI-SE-GO 
+    => (10) sec
+    => (SE) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    => (SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 4] Testing with its parent state init ... 
+  [MINIMIZATION-STATE 4] Same as parent state init. Merge with its parent
+  [MINIMIZATION-STATE 5] Retrieving its SR dict
+    => (GO) - SE-WI / SE-WI-SE-GO 
+    => (10) sec
+    => (GO) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    => (GO) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (GO) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (GO) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 5] Testing with its parent state init ... 
+  [MINIMIZATION-STATE 5] Same as parent state init. Merge with its parent
+  [+] State minimization end in level 1. (Mon Apr  3 14:29:41 2023)
+  [+] --- Finished level 2 | Time elapsed 270.6836051940918 ---
+  [+] --- Starting level 2 ---
+  [+] State expansion start in level 2. (Mon Apr  3 14:29:41 2023)
+  [EXPANSION-LEAF] Expanding leaf state 1 (1/2 leaves)
+    [EXPANSION-STATE-'1'] move Frame: SE-WI, send Frame: SE-WI (1/5 msgs)
+    => (SE-WI) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    [+] Candidate state 6 added (1 -> 6)
+    [EXPANSION-STATE-'1'] move Frame: SE-WI, send Frame: SE-WI-PR-PR-PR-PR-PR-PR (2/5 msgs)
+    => (SE-WI) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (0) sec
+    [+] Candidate state 7 added (1 -> 7)
+    [EXPANSION-STATE-'1'] move Frame: SE-WI, send Frame: SE (3/5 msgs)
+    => (SE-WI) - SE / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 8 added (1 -> 8)
+    [EXPANSION-STATE-'1'] move Frame: SE-WI, send Frame: SE (4/5 msgs)
+    => (SE-WI) - SE / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 9 added (1 -> 9)
+    [EXPANSION-STATE-'1'] move Frame: SE-WI, send Frame: GO (5/5 msgs)
+    => (SE-WI) - GO / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 10 added (1 -> 10)
+  [EXPANSION-LEAF] Expanding leaf state 2 (2/2 leaves)
+    [EXPANSION-STATE-'2'] move Frame: SE-WI-PR-PR-PR-PR-PR-PR, send Frame: SE-WI (1/5 msgs)
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    [+] Candidate state 11 added (2 -> 11)
+    [EXPANSION-STATE-'2'] move Frame: SE-WI-PR-PR-PR-PR-PR-PR, send Frame: SE-WI-PR-PR-PR-PR-PR-PR (2/5 msgs)
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 12 added (2 -> 12)
+    [EXPANSION-STATE-'2'] move Frame: SE-WI-PR-PR-PR-PR-PR-PR, send Frame: SE (3/5 msgs)
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - SE / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 13 added (2 -> 13)
+    [EXPANSION-STATE-'2'] move Frame: SE-WI-PR-PR-PR-PR-PR-PR, send Frame: SE (4/5 msgs)
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - SE / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 14 added (2 -> 14)
+    [EXPANSION-STATE-'2'] move Frame: SE-WI-PR-PR-PR-PR-PR-PR, send Frame: GO (5/5 msgs)
+    => (SE-WI-PR-PR-PR-PR-PR-PR) - GO / SE-WI-SE-GO 
+    => (10) sec
+    [+] Candidate state 15 added (2 -> 15)
+  [+] State expansion end in level 2. (Mon Apr  3 14:30:51 2023)
+state list length : 3
+['init', '1', '2']
+state list length : 10
+['6', '7', '8', '9', '10', '11', '12', '13', '14', '15']
+  [+] State minimization start in level 2. (Mon Apr  3 14:30:51 2023)
+  [INFO] Test 10 candidate states in level 2
+  [MINIMIZATION-STATE 6] Retrieving its SR dict
+    => (SE-WI-SE-WI) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE-WI) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE-WI) - SE / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE-WI) - SE / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE-WI) - GO / SE-WI-SE-GO 
+    => (0) sec
+  [MINIMIZATION-STATE 6] Testing with its parent state 1 ... 
+  [MINIMIZATION-STATE 6] -> Different from parent 1. Now check with sibling nodes ...
+  [MINIMIZATION-STATE 6] -> Different from siblings, Now check with relative nodes ...
+  [MINIMIZATION-STATE 6] -> **** Unique state 6 found ****
+  [MINIMIZATION-STATE 6] -> finishing state
+  [MINIMIZATION-STATE 7] Retrieving its SR dict
+    => (SE-WI-SE-WI-PR-PR-PR-PR-PR-PR) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE-WI-PR-PR-PR-PR-PR-PR) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE-WI-PR-PR-PR-PR-PR-PR) - SE / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE-WI-PR-PR-PR-PR-PR-PR) - SE / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE-WI-PR-PR-PR-PR-PR-PR) - GO / SE-WI-SE-GO 
+    => (0) sec
+  [MINIMIZATION-STATE 7] Testing with its parent state 1 ... 
+  [MINIMIZATION-STATE 7] -> Different from parent 1. Now check with sibling nodes ...
+  [MINIMIZATION-STATE 7] -> Different from siblings, Now check with relative nodes ...
+  [MINIMIZATION-STATE 7] -> **** Unique state 7 found ****
+  [MINIMIZATION-STATE 7] -> finishing state
+  [MINIMIZATION-STATE 8] Retrieving its SR dict
+    => (SE-WI-SE) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-SE) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 8] Testing with its parent state 1 ... 
+  [MINIMIZATION-STATE 8] Same as parent state 1. Merge with its parent
+  [MINIMIZATION-STATE 9] Retrieving its SR dict
+    => (SE-WI-SE) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-SE) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 9] Testing with its parent state 1 ... 
+  [MINIMIZATION-STATE 9] Same as parent state 1. Merge with its parent
+  [MINIMIZATION-STATE 10] Retrieving its SR dict
+    => (SE-WI-GO) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-GO) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-GO) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-GO) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-GO) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 10] Testing with its parent state 1 ... 
+  [MINIMIZATION-STATE 10] Same as parent state 1. Merge with its parent
+  [MINIMIZATION-STATE 11] Retrieving its SR dict
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI) - SE / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI) - SE / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI) - GO / SE-WI-SE-GO 
+    => (0) sec
+  [MINIMIZATION-STATE 11] Testing with its parent state 2 ... 
+  [MINIMIZATION-STATE 11] -> Different from parent 2. Now check with sibling nodes ...
+  [MINIMIZATION-STATE 11] -> Different from siblings, Now check with relative nodes ...
+  [MINIMIZATION-STATE 11] -> **** Unique state 11 found ****
+  [MINIMIZATION-STATE 11] -> finishing state
+  [MINIMIZATION-STATE 12] Retrieving its SR dict
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI-PR-PR-PR-PR-PR-PR) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI-PR-PR-PR-PR-PR-PR) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI-PR-PR-PR-PR-PR-PR) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI-PR-PR-PR-PR-PR-PR) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE-WI-PR-PR-PR-PR-PR-PR) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 12] Testing with its parent state 2 ... 
+  [MINIMIZATION-STATE 12] Same as parent state 2. Merge with its parent
+  [MINIMIZATION-STATE 13] Retrieving its SR dict
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 13] Testing with its parent state 2 ... 
+  [MINIMIZATION-STATE 13] Same as parent state 2. Merge with its parent
+  [MINIMIZATION-STATE 14] Retrieving its SR dict
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-SE) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 14] Testing with its parent state 2 ... 
+  [MINIMIZATION-STATE 14] Same as parent state 2. Merge with its parent
+  [MINIMIZATION-STATE 15] Retrieving its SR dict
+    => (SE-WI-PR-PR-PR-PR-PR-PR-GO) - SE-WI / SE-WI-SE-GO 
+    => (0) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-GO) - SE-WI-PR-PR-PR-PR-PR-PR / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-GO) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-GO) - SE / SE-WI-SE-GO 
+    => (10) sec
+    => (SE-WI-PR-PR-PR-PR-PR-PR-GO) - GO / SE-WI-SE-GO 
+    => (10) sec
+  [MINIMIZATION-STATE 15] Testing with its parent state 2 ... 
+  [MINIMIZATION-STATE 15] Same as parent state 2. Merge with its parent
+  [+] State minimization end in level 2. (Mon Apr  3 14:35:03 2023)
+  [+] --- Finished level 3 | Time elapsed 592.7267343997955 ---
+[+] All jobs done. Total elapsed time is  592.727334022522
