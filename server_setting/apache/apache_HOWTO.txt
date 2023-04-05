@@ -10,7 +10,7 @@ $ sudo apt-get -y install libpcre3-dev zlib1g-dev libssl1.0-dev
 $ sudo apt-get install libnghttp2-dev
 $ sudo apt-get install libapr1-dev libaprutil1-dev
 
-$ sudo ./configure --prefix=/usr/local/httpd2  --enable-so -enable-ssl --enable-http2
+$ sudo ./configure --prefix=/usr/local/httpd2  --enable-so --enable-ssl --enable-http2
 
 $ sudo make
 $ sudo make install
@@ -48,7 +48,7 @@ etag: "62d926bd-267"
 accept-ranges: bytes
 
 // httpd Stopping
-$ 
+$ sudo /usr/local/httpd2/bin/httpd -k stop
 
 
 // additional setting
