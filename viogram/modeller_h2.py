@@ -8,9 +8,13 @@ import scapy.contrib.http2 as h2
 import time
 import sys
 import ssl
+import sslkeylog
 import socket
 import logging
+import os
 logger = logging.getLogger(__name__)
+os.environ["SSLKEYLOGFILE"] = "sslkey_scapy.txt"
+sslkeylog.set_keylog("sslkey_scapy.txt")
 
 def modeller_h2(http2_basic_messages, dst_ip):
 	g_start_time = time.time()
