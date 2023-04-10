@@ -1,24 +1,12 @@
-# apache (2.4.56) setting and running
-
-
-// Apache INSTALLATION
-
+// INSTALLATION
 $ sudo apt-get update
-
 $ sudo apt-get -y install build-essential curl
-$ sudo apt-get -y install libpcre3-dev zlib1g-dev libssl1.0-dev
-$ sudo apt-get install libnghttp2-dev
-$ sudo apt-get install libapr1-dev libaprutil1-dev
-
+$ sudo apt-get -y install libpcre3-dev zlib1g-dev libssl1.0-dev libnghttp2-dev libapr1-dev libaprutil1-dev
 $ sudo ./configure --prefix=/usr/local/httpd2  --enable-so --enable-ssl --enable-http2
-
-$ sudo make
+$ sudo make -j
 $ sudo make install
 
-
-// SSL ISSUANCE
-
-ref : https://codens.info/1805
+// SSL ISSUANCE (https://codens.info/1805)
 1. generate localhost.conf
 	change name in commonName_default and DNS.1 to localhost
 2. generate localhost.key and localhost.crt
@@ -26,44 +14,26 @@ ref : https://codens.info/1805
 	$ sudo openssl req -config localhost.conf -new -sha256 -newkey rsa:2048 -nodes -keyout localhost.key -x509 -days 365 -out localhost.crt
 	$ enters...
 
-
-// SSL Setting
-- move .crt and .key file to conf directory (See /usr/local/httpd/conf/extra/httpd-ssl.conf)
-	$ sudo cp localhost.crt /usr/local/httpd2/conf/server.crt
-	$ sudo cp localhost.key /usr/local/httpd2/conf/server.key
-
-
-// httpd Starting
-$ sudo /usr/local/httpd2/bin/httpd
-$ sudo curl -k -I https://localhost
-
-- The output:
-HTTP/2 200 
-server: nginx/1.23.1
-date: Thu, 21 Jul 2022 10:54:37 GMT
-content-type: text/html
-content-length: 615
-last-modified: Thu, 21 Jul 2022 10:13:17 GMT
-etag: "62d926bd-267"
-accept-ranges: bytes
-
-// httpd Stopping
-$ sudo /usr/local/httpd2/bin/httpd -k stop
-
-
-// additional setting
- 
-In /usr/local/httpd2/conf/httpd.conf ...
-
-- find & erase 4 comments below
-LoadModule ssl_module modules/mod_ssl.so 
-LoadModule http2_module modules/mod_http2.so
-LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
-Include conf/extra/httpd-ssl.conf
-
-- add below
+// SERVER SETTING
+** /usr/local/httpd2/conf/httpd.conf **
+1. find & erase 4 comments below
+[line 89] LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
+[line 135] LoadModule ssl_module modules/mod_ssl.so 
+[line 136] LoadModule http2_module modules/mod_http2.so
+[line 497] Include conf/extra/httpd-ssl.conf
+2. add at the last
 <IfModule http2_module> 
   ProtocolsHonorOrder On
   Protocols h2 h2c http/1.1
 </IfModule>
+** /usr/local/httpd/conf/extra/httpd-ssl.conf **
+3. move .crt and .key file to conf directory
+	$ sudo cp localhost.crt /usr/local/httpd2/conf/server.crt
+	$ sudo cp localhost.key /usr/local/httpd2/conf/server.key
+
+// START & STOP
+$ sudo /usr/local/httpd2/bin/httpd
+$ sudo curl -k -I https://localhost
+$ sudo /usr/local/httpd2/bin/httpd -k stop
+
 
