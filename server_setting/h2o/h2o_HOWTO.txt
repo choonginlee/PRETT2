@@ -17,6 +17,7 @@ $ sudo make install
 
 // SERVER SETTING
 ** make /etc/h2oconf.conf **
+http2-idle-timeout: 10
 hosts:
   "localhost":
     listen:

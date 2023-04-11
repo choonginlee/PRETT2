@@ -31,6 +31,7 @@ $ sudo make install
 </IfModule>
 ** /usr/local/httpd/conf/extra/httpd-ssl.conf **
 3. change configure
+[line 93] SSL session timeout to 10s?
 [line 124] DocumentRoot "/usr/share/nginx/html"
 [line 125] ServerName localhost:443
 4. move .crt and .key file to conf directory
