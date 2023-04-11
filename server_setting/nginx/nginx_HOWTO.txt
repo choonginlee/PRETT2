@@ -1,33 +1,11 @@
-# nginx (1.23.1) setting and running
-
-
-// NGINX INSTALLATION
-
+// INSTALLATION
 $ sudo apt-get update
-$ sudo apt-get -y install build-essential curl
-$ sudo apt-get -y install libpcre3-dev zlib1g-dev libssl1.0-dev
-
-// For nginx 1.14.2 in Ubuntu 22, use openssl 1.1.1j
-
-$ sudo wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-$ sudo tar -xzf openssl-1.1.1l.tar.gz 
-$ cd openssl-1.1.1l/
-./config --prefix=/usr/local/openssl_1_1_1j --openssldir=/usr/local/$ openssl_1_1_1j/ssl
-sudo ./config --prefix=/usr/local/openssl_1_1_1j --openssldir=/usr/local/$ openssl_1_1_1j/ssl
+$ sudo apt-get -y install build-essential curl libpcre3-dev zlib1g-dev libssl1.0-dev
+$ sudo ./configure --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid --with-http_ssl_module --with-stream --with-mail=dynamic --with-cc-opt="-g" --with-debug --with-http_v2_module
 $ sudo make
 $ sudo make install
 
-// Specify --with-openssl to openssl source directory 
-$ sudo ./configure --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid --with-http_ssl_module --with-stream --with-mail=dynamic --with-cc-opt="-g" --with-debug --with-http_v2_module --with-openssl=/home/oren/PRETT2/server_setting/nginx/openssl-1.1.1l
-
-$ sudo make
-$ sudo make install
-
-// For installing NGINX 1.14.0 in Ubuntu 22
-- install gcc 7 with update-alternatives
-- erase salt something
-
-// SSL ISSUANCE
+// SSL ISSUANCE (https://codens.info/1805)
 ref : https://codens.info/1805
 1. generate localhost.conf
 	change name in commonName_default and DNS.1 to localhost
@@ -36,36 +14,29 @@ ref : https://codens.info/1805
 	$ sudo openssl req -config localhost.conf -new -sha256 -newkey rsa:2048 -nodes -keyout localhost.key -x509 -days 365 -out localhost.crt
 	$ enters...
 
+// SERVER SETTING
+1. change nginx.conf (/usr/local/nginx/nginx.conf)
+[line 99] 443 ssl http2
+[line 100] localhost
+[line 102] /home/oren/PRETT2/server_keys/localhost.crt;
+[line 103] /home/oren/PRETT2/server_keys/localhost.key;
+[lines 98-115] de-omit lines 
+2. change nginx.conf (/usr/local/nginx/nginx.conf)
+- for nginx >1.19.7
+[line 31] keepalive_timeout  10s; (changing 65 -> 10)
+- for Nginx <1.19.7 
+[line 31] http2_idle_timeout 10s; (disable keepalive_timeout)
+[line 107] http2_recv_timeout 10s;
 
-// SSL Setting
-- change nginx.conf (/usr/local/nginx/nginx.conf)
-	line 99 to '443 ssl http2'
-	line 100 to 'localhost'
-	line 102 to '/home/lee2/serverset/localhost.crt;'
-	line 103 to '/home/lee2/serverset/localhost.key;'
-	de-omit lines 98-115
-
-// nginx Starting
+// START & STOP
 $ sudo /usr/local/nginx/nginx
 $ sudo curl -k -I https://localhost
-
-- The output:
-HTTP/2 200 
-server: nginx/1.23.1
-date: Thu, 21 Jul 2022 10:54:37 GMT
-content-type: text/html
-content-length: 615
-last-modified: Thu, 21 Jul 2022 10:13:17 GMT
-etag: "62d926bd-267"
-accept-ranges: bytes
-
-// ngix Stopping
 $ sudo /usr/local/nginx/nginx -s stop
 
-// additional setting
-- change nginx.conf (/usr/local/nginx/nginx.conf)
-	line 31 to keepalive_timeout  10s; (changing 65 -> 10)
-
-- for Nginx <1.19.7 
-	line 31 to http2_idle_timeout 10s; (disable keepalive_timeout)
-	line 107 add http2_recv_timeout 10s;
+// SPECIAL CASE: installing NGINX 1.14.0 in Ubuntu 22
+- install gcc 7 with update-alternatives
+- erase salt something
+- use openssl 1.1.1j
+$ sudo wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+- specify --with-openssl to openssl source directory 
+$ sudo ./configure --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid --with-http_ssl_module --with-stream --with-mail=dynamic --with-cc-opt="-g" --with-debug --with-http_v2_module --with-openssl=/home/oren/PRETT2/server_setting/nginx/openssl-1.1.1l

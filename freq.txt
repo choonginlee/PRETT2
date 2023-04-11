@@ -1,0 +1,14 @@
+* Apache
+sudo /usr/local/httpd2/bin/httpd
+sudo /usr/local/httpd2/bin/httpd -k stop
+sudo subl /usr/local/httpd2/conf/httpd.conf
+sudo subl /usr/local/httpd/conf/extra/httpd-ssl.conf
+
+* Nginx
+sudo /usr/local/nginx/nginx
+sudo /usr/local/nginx/nginx -s stop
+sudo subl /usr/local/nginx/nginx.conf
+
+* H2O
+
+* token

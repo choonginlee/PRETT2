@@ -21,17 +21,25 @@ $ sudo make install
 [line 135] LoadModule ssl_module modules/mod_ssl.so 
 [line 136] LoadModule http2_module modules/mod_http2.so
 [line 497] Include conf/extra/httpd-ssl.conf
+1-1. change configure
+[line 221] DocumentRoot "/usr/share/nginx/html"
+[line 222] <Directory "/usr/share/nginx/html">
 2. add at the last
 <IfModule http2_module> 
   ProtocolsHonorOrder On
   Protocols h2 h2c http/1.1
 </IfModule>
 ** /usr/local/httpd/conf/extra/httpd-ssl.conf **
-3. move .crt and .key file to conf directory
+3. change configure
+[line 124] DocumentRoot "/usr/share/nginx/html"
+[line 125] ServerName localhost:443
+4. move .crt and .key file to conf directory
 	$ sudo cp localhost.crt /usr/local/httpd2/conf/server.crt
 	$ sudo cp localhost.key /usr/local/httpd2/conf/server.key
 
 // START & STOP
+$ sudo cp ./httpd.conf /usr/local/httpd/conf
+$ sudo cp ./httpd-ssl.conf /usr/local/httpd/conf/extra
 $ sudo /usr/local/httpd2/bin/httpd
 $ sudo curl -k -I https://localhost
 $ sudo /usr/local/httpd2/bin/httpd -k stop
