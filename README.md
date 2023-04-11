@@ -3,7 +3,9 @@ PRETT/2
 
 PRETT/2 is an automated protocol modeler for HTTP/2 servers.
 
-## Prerequisite (Ubuntu 22)
+## Prerequisite 
+- Python3 - Ubuntu 22
+- Python2 - Ubuntu 18
 ### Python3
 - sudo apt-get install python3-dev python3-pip python-tk graphviz libgraphviz-dev libjpeg-dev
 ### Python2
