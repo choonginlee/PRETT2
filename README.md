@@ -13,6 +13,7 @@ PRETT/2 is an automated protocol modeler for HTTP/2 servers.
 - sudo pip install transitions
 - sudo pip install matplotlib
 - sudo pip install pygraphviz
+- sudo pip install sslkeylog
 
 ## How To Run
 
