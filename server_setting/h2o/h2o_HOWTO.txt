@@ -1,19 +1,13 @@
-h2o_HOWTO.txt
-
-// H2O INSTALLATION
-
+// INSTALLATION
 $ sudo apt-get update
 $ sudo apt-get -y install cmake
 $ mkdir -p build
 $ cd build
-$ cmake ..
-$ make
+$ sudo cmake ..
+$ sudo make -j
 $ sudo make install
 
-
-// SSL ISSUANCE
-
-ref : https://codens.info/1805
+// SSL ISSUANCE (https://codens.info/1805)
 1. generate localhost.conf
 	change name in commonName_default and DNS.1 to localhost
 2. generate localhost.key and localhost.crt
@@ -21,11 +15,10 @@ ref : https://codens.info/1805
 	$ sudo openssl req -config localhost.conf -new -sha256 -newkey rsa:2048 -nodes -keyout localhost.key -x509 -days 365 -out localhost.crt
 	$ enters...
 
-
-// make /etc/h2oconf.conf
-
+// SERVER SETTING
+** make /etc/h2oconf.conf **
 hosts:
-  "example.com":
+  "localhost":
     listen:
       port: 443
       ssl:
@@ -33,28 +26,12 @@ hosts:
         key-file: /home/oren/PRETT2/server_keys/localhost.key
     paths:
       "/":
-        file.dir: htdocs/site1
+        file.dir: /usr/share/nginx/html
       "/icons":
         file.dir: icons
         expires: 1 day
-  "example.com:80":
-    listen:
-      port: 80
-    paths:
-      "/":
-        redirect: "https://example.com/"
 
-
-// h2o Starting
+// START & STOP
 $ sudo /usr/local/bin/h2o -c /etc/h2oconf.conf
 $ sudo curl -k -I https://localhost
-
-- The output:
-HTTP/2 404 
-server: h2o/2.2.4
-date: Wed, 05 Apr 2023 21:00:01 GMT
-content-type: text/plain; charset=utf-8
-content-length: 9
-
-// h2o Stopping
-- Just ctrl + c
+- Just ctrl + c for stop

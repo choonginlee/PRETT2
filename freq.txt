@@ -10,5 +10,8 @@ sudo /usr/local/nginx/nginx -s stop
 sudo subl /usr/local/nginx/nginx.conf
 
 * H2O
+sudo /usr/local/bin/h2o -c /etc/h2oconf.conf
+sudo subl /etc/h2oconf.conf
 
 * token
+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

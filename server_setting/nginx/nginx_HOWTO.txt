@@ -6,7 +6,6 @@ $ sudo make
 $ sudo make install
 
 // SSL ISSUANCE (https://codens.info/1805)
-ref : https://codens.info/1805
 1. generate localhost.conf
 	change name in commonName_default and DNS.1 to localhost
 2. generate localhost.key and localhost.crt
