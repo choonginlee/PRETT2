@@ -27,7 +27,10 @@ $ sudo make install
 2. add at the last
 <IfModule http2_module> 
   ProtocolsHonorOrder On
-  Protocols h2 h2c http/1.1
+  Protocols h2 h2c
+  Keepalive On
+  KeepAliveTimeout 5
+  Timeout 5
 </IfModule>
 ** /usr/local/httpd/conf/extra/httpd-ssl.conf **
 3. change configure
