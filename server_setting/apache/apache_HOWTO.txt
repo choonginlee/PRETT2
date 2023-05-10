@@ -42,8 +42,8 @@ $ sudo make install
 	$ sudo cp localhost.key /usr/local/httpd2/conf/server.key
 
 // START & STOP
-$ sudo cp ./httpd.conf /usr/local/httpd/conf
-$ sudo cp ./httpd-ssl.conf /usr/local/httpd/conf/extra
+$ sudo cp ./httpd.conf /usr/local/httpd2/conf/
+$ sudo cp ./httpd-ssl.conf /usr/local/httpd2/conf/extra
 $ sudo /usr/local/httpd2/bin/httpd
 $ sudo curl -k -I https://localhost
 $ sudo /usr/local/httpd2/bin/httpd -k stop

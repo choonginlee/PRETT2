@@ -3,6 +3,7 @@
 import re
 
 import scapy.contrib.http2 as h2
+import scapy.layers.inet6 as inet6
 from scapy.utils import rdpcap
 
 frameInfoArr = ['DATA', 'HEADERS', 'PRIORITY', 'RST_STREAM', 'SETTINGS', 'PUSHPROMISE', 'PING', 'GO_AWAY',
@@ -61,6 +62,10 @@ def h2msg_from_pcap(f):
         pcapng = rdpcap(f)
         frameid = 1
         for buf in pcapng:  # for each http2 message
+            # tmpbuf = h2.H2Seq(buf)
+            # print(type(tmpbuf))
+            # tmpbuf.show()
+
             http2raw = buf.load[64:]
             # handle magic
             if http2raw[:24] == b'\x50\x52\x49\x20\x2a\x20\x48\x54\x54\x50\x2f\x32\x2e\x30\x0d\x0a\x0d\x0a\x53\x4d\x0d\x0a\x0d\x0a':
