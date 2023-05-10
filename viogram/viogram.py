@@ -22,7 +22,7 @@ def init():
 	sys.stdout = util.Tee(sys.stdout, f)
 
 	dst_ip = sys.argv[1]
-	pcapfile = './pcapFile/http2_decrypted_http2Out.pcapng'
+	pcapfile = '/home/oren/PRETT2/viogram/pcapFile/dataset/latest/ap_l_ff_l.pcapng'
 
 	print("  [+] Initializing done!\n    => pcap : %s, dst_ip : %s" % (pcapfile, dst_ip))
 	return dst_ip, pcapfile

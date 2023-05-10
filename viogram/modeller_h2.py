@@ -1,5 +1,6 @@
 from states import *
 import statemachine as stma
+import json
 import util
 from scapy.all import *
 from scapy.compat import raw, plain_str, hex_bytes, orb, chb, bytes_encode
@@ -26,8 +27,6 @@ def modeller_h2(http2_basic_messages, dst_ip):
 	pm.dst_ip = dst_ip
 
 	while True: # for each level
-		if len(pm.state_list.get_states_by_level(pm.current_level)) == 0:
-			break
 		print("  [+] --- Starting level %d ---" % (pm.current_level))
 		logger.info("  [+] --- Starting level %d ---" % (pm.current_level))
 
@@ -52,23 +51,29 @@ def modeller_h2(http2_basic_messages, dst_ip):
 		print("  [+] State minimization end in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
 		logger.info("  [+] State minimization end in level %d. (%s)" % (pm.current_level, time.ctime(time.time())))
 
-		### Graph drawing ###
-		graphname = "diagram/level_" + str(pm.current_level) + ".png"
-		sm.get_graph().draw(graphname, prog='dot')
-
 		### Finishing current level ... ###
 		elapsed_time = time.time() - g_start_time
 		pm.current_level = pm.current_level + 1
 		pm.candidate_state_list.state_list = []  # clear candidate state list
 		print("  [+] --- Finished level %d | " % (pm.current_level) + "Time elapsed %s ---" % elapsed_time)
 		logger.info("  [+] --- Finished level %d | " % (pm.current_level) + "Time elapsed %s ---" % elapsed_time)
+		
+		if len(pm.state_list.get_states_by_level(pm.current_level)) == 0: # Jobs finished
+			break
+
+		### Graph drawing ###
+		graphname = "diagram/level_" + str(pm.current_level-1) + ".png"
+		sm.get_graph().draw(graphname, prog='dot')
+		with open(graphname.replace(".png", ".json"), "w") as jsonfile:
+			json.dump(sm.markup, jsonfile, indent=2)
 
 	elapsed_time = time.time() - g_start_time
 	print ("[+] All jobs done. Total elapsed time is ", elapsed_time)
-	# Program normally ends.
-	# pm.model.graph.draw("diagram/prune_bfs_state_fin.png", prog='dot')
-	# f.close()
-	pm.get_graph().draw("diagram/prune_bfs_state_fin.png", prog='dot')
+	### Graph drawing ###
+	graphname = "diagram/level_" + str(pm.current_level-1) + "(fin).png"
+	sm.get_graph().draw(graphname, prog='dot')
+	with open(graphname.replace(".png", ".json"), "w") as jsonfile:
+		json.dump(sm.markup, jsonfile, indent=2)
 	logger.info(pm.transition_info)
 	sys.exit()
 
@@ -242,6 +247,8 @@ def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
 			endTime = time.time()
 			elapsedTime = endTime - startTime
 			elapsedTime = int(elapsedTime)
+			if elapsedTime > 0:
+				elapsedTime = 5
 			if (pm.timeout - elapsedTime) == 1:
 				# print("timeout set to %d" % pm.timeout)
 				elapsedTime = pm.timeout

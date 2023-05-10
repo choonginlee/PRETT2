@@ -107,25 +107,25 @@ def check_dupstate(pm, md, cand_s, mode):
     if mode == 'p':
         # Case 1. Parent
         # Compare its SR dict with that of its parent
-        print('  [MINIMIZATION-STATE %s] Testing with its parent state %s ... ' % (
-            str(cand_s.name), str(cand_s.parent_state.name)))
-        logger.info('  [MINIMIZATION-STATE %s] Testing with its parent state %s ... ' % (
-            str(cand_s.name), str(cand_s.parent_state.name)))
+        # print('  [lv.%d-MINIMIZATION-STATE %s] Testing with its parent state %s ... ' % (pm.current_level,
+        #     str(cand_s.name), str(cand_s.parent_state.name)))
+        # logger.info('  [lv.%d-MINIMIZATION-STATE %s] Testing with its parent state %s ... ' % (pm.current_level,
+        #     str(cand_s.name), str(cand_s.parent_state.name)))
 
         # target_sr_dict: messages from a parent node to its child nodes ( key : request, value : resposnses )
-        target_sr_dict = OrderedDict()
-        for cand_s_tmp in pm.candidate_state_list.state_list:
-            if cand_s_tmp.parent_state == cand_s.parent_state:
-                h2msg_sent_str = util.h2msg_to_str(cand_s_tmp.h2msg_sent)
-                h2msg_rcvd_str = util.h2msg_to_str(cand_s_tmp.h2msg_rcvd)
-                target_sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' / ' + str(int(cand_s_tmp.elapsedTime))
+        # target_sr_dict = OrderedDict()
+        # for cand_s_tmp in pm.candidate_state_list.state_list:
+        #     if cand_s_tmp.parent_state == cand_s.parent_state:
+        #         h2msg_sent_str = util.h2msg_to_str(cand_s_tmp.h2msg_sent)
+        #         h2msg_rcvd_str = util.h2msg_to_str(cand_s_tmp.h2msg_rcvd)
+        #         target_sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' / ' + str(int(cand_s_tmp.elapsedTime))
 
-        if cand_s.parent_state.child_sr_dict is not None and not util.compare_ordered_dict(
-                cand_s.parent_state.child_sr_dict, target_sr_dict):  # For debugging
-            print("check_dupstate(): parent state %s's child_sr_dict changed!" % cand_s.parent_state.name)
-        cand_s.parent_state.child_sr_dict = target_sr_dict
+        # if cand_s.parent_state.child_sr_dict is not None and not util.compare_ordered_dict(
+        #         cand_s.parent_state.child_sr_dict, target_sr_dict):  # For debugging
+        #     print("check_dupstate(): parent state %s's child_sr_dict changed!" % cand_s.parent_state.name)
+        # cand_s.parent_state.child_sr_dict = target_sr_dict
 
-        if util.compare_ordered_dict(target_sr_dict, cand_s.child_sr_dict):
+        if util.compare_ordered_dict(cand_s.parent_state.child_sr_dict, cand_s.child_sr_dict):
             md.src_s = cand_s.parent_state
             md.dst_s = cand_s.parent_state
             return True
@@ -135,10 +135,10 @@ def check_dupstate(pm, md, cand_s, mode):
     elif mode == 's':
         # STEP 2. Sibling
         # Compare its child dict with that of states whose parent is same.
-        print("  [MINIMIZATION-STATE %s] -> Different from parent %s. Now check with sibling nodes ..." % (
-            cand_s.name, cand_s.parent_state.name))
-        logger.info("  [MINIMIZATION-STATE %s] -> Different from parent %s. Now check with sibling nodes ..." % (
-            cand_s.name, cand_s.parent_state.name))
+        # print("  [lv.%d-MINIMIZATION-STATE %s] -> Different from parent %s. Now check with sibling nodes ..." % (pm.current_level,
+        #     cand_s.name, cand_s.parent_state.name))
+        # logger.info("  [lv.%d-MINIMIZATION-STATE %s] -> Different from parent %s. Now check with sibling nodes ..." % (pm.current_level,
+        #     cand_s.name, cand_s.parent_state.name))
 
         for state_v in pm.state_list.state_list:  # check all states that are valid till now
             if state_v.parent_state is not None and state_v.parent_state.name == cand_s.parent_state.name:  #
@@ -153,9 +153,9 @@ def check_dupstate(pm, md, cand_s, mode):
     elif mode == 'r':
         # Step 3. Relatives
         # Compare its child dict with that of the other states
-        print("  [MINIMIZATION-STATE %s] -> Different from siblings, Now check with relative nodes ..." % cand_s.name)
-        logger.info(
-            "  [MINIMIZATION-STATE %s] -> Different from siblings, Now check with relative nodes ..." % cand_s.name)
+        # print("  [lv.%d-MINIMIZATION-STATE %s] -> Different from siblings, Now check with relative nodes ..." % (pm.current_level, cand_s.name))
+        # logger.info(
+        #     "  [lv.%d-MINIMIZATION-STATE %s] -> Different from siblings, Now check with relative nodes ..." % (pm.current_level, cand_s.name))
 
         for state_v in pm.state_list.state_list:  # check all states that are valid till now
             if state_v.name == cand_s.parent_state.name:
@@ -185,8 +185,8 @@ def update_sm(pm, sm, cand_s, md):
     else:
         # Finished
         if int(cand_s.elapsedTime) == 0:
-            print("  [MINIMIZATION-STATE %s] -> finishing state" % cand_s.name)
-            logger.info("  [MINIMIZATION-STATE %s] -> finishing state" % cand_s.name)
+            print("  [lv.%d-MINIMIZATION-STATE %s] It is finishing state!" % (pm.current_level, cand_s.name))
+            logger.info("  [lv.%d-MINIMIZATION-STATE %s] It is finishing state!" % (pm.current_level, cand_s.name))
             if len(sm.get_transitions(trigger=md.t_label + "\n", source=cand_s.parent_state.name, dest='fin')) > 0:
                 return
             sm.add_transition(md.t_label + "\n", source=cand_s.parent_state.name, dest='fin')
@@ -201,10 +201,11 @@ def expand_sm(pm, sm, leaf_states):
     # Find candidate states in the next level from leaf states found in the current level.
     leafstate_num = 1
     for leaf_state in leaf_states:
+        sr_dict = OrderedDict()
         try:
-            print("  [EXPANSION-LEAF] Expanding leaf state %s (%d/%d leaves)" % (
+            print("  [lv.%d-EXPANSION-LEAF] Expanding leaf state %s (%d/%d leaves)" % (pm.current_level,
                 leaf_state.name, leafstate_num, len(leaf_states)))
-            logger.info("  [EXPANSION-LEAF] Expanding leaf state %s (%d/%d leaves)" % (
+            logger.info("  [lv.%d-EXPANSION-LEAF] Expanding leaf state %s (%d/%d leaves)" % (pm.current_level,
                 leaf_state.name, leafstate_num, len(leaf_states)))
         except Exception as e:
             print(e)
@@ -216,10 +217,10 @@ def expand_sm(pm, sm, leaf_states):
         pm.current_state = leaf_state
         parent_elapsed_time = leaf_state.elapsedTime
         for h2msg_sent in pm.testmsgs:  # test messages : SE-WI, DA-HE-DA .... (from pcap)
-            print("    [EXPANSION-STATE-\'%s\'] move Frame: %s, send Frame: %s (%d/%d msgs)" % (
+            print("    [lv.%d-EXPANSION-STATE-\'%s\'] move Frame: %s, send Frame: %s (%d/%d msgs)" % (pm.current_level,
                 leaf_state.name, util.h2msg_to_str(move_state_h2msgs), util.h2msg_to_str(h2msg_sent), message_num,
                 len(pm.testmsgs)))
-            logger.info("    [EXPANSION-STATE-\'%s\'] move Frame: %s, send Frame: %s (%d/%d msgs)" % (
+            logger.info("    [lv.%d-EXPANSION-STATE-\'%s\'] move Frame: %s, send Frame: %s (%d/%d msgs)" % (pm.current_level,
                 leaf_state.name, util.h2msg_to_str(move_state_h2msgs), util.h2msg_to_str(h2msg_sent), message_num,
                 len(pm.testmsgs)))
             # print ("  [ ] It may take time for receiving Go Away frame..")
@@ -227,7 +228,11 @@ def expand_sm(pm, sm, leaf_states):
                                                                      parent_elapsed_time)
             update_candidates(pm, sm, h2msg_sent, h2msg_rcvd, elapsedTime)
             message_num += 1
+            h2msg_sent_str = util.h2msg_to_str(h2msg_sent)
+            h2msg_rcvd_str = util.h2msg_to_str(h2msg_rcvd)
+            sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' / ' + str(int(elapsedTime))
         leafstate_num += 1
+        pm.current_state.child_sr_dict = sr_dict
 
 
 ## if Elapsed time is 0, it means end state
@@ -242,7 +247,7 @@ def minimize_sm(pm, sm):
     for cand_s in cand_s_list:
         ######## Retrieve cand_s SR info ########
         # cand_sr_dict: messages from cand_s to and its child node (Do the same test as parent).
-        print('  [MINIMIZATION-STATE %s] Retrieving its SR dict' % cand_s.name)
+        print('  [lv.%d-MINIMIZATION-STATE %s] Retrieving its SR dict' % (pm.current_level, cand_s.name))
         cand_sr_dict = OrderedDict()
         move_state_h2msgs = get_move_state_h2msgs(pm, cand_s)
         move_state_h2msgs_str = util.h2msg_to_str(move_state_h2msgs)
@@ -263,27 +268,27 @@ def minimize_sm(pm, sm):
         md = MergeData()
         md.t_label = sr_msg
         if check_dupstate(pm, md, cand_s, 'p'):
-            print("  [MINIMIZATION-STATE %s] Same as parent state %s. Merge with its parent" % (
+            print("  [lv.%d-MINIMIZATION-STATE %s] Same as parent state %s. Merge with its parent" % (pm.current_level, 
                 cand_s.name, md.dst_s.name))
             logger.debug(
-                "  [MINIMIZATION-STATE %s] Same as parent state %s. Merge with its parent" % (
+                "  [lv.%d-MINIMIZATION-STATE %s] Same as parent state %s. Merge with its parent" % (pm.current_level,
                     cand_s.name, md.dst_s.name))
         elif check_dupstate(pm, md, cand_s, 's'):
-            print("  [MINIMIZATION-STATE %s] Same as sibling state %s. Merge with its sibling" % (
+            print("  [lv.%d-MINIMIZATION-STATE %s] Same as sibling state %s. Merge with its sibling" % (pm.current_level,
                 cand_s.name, md.dst_s.name))
             logger.debug(
-                "  [MINIMIZATION-STATE %s] Same as sibling state %s. Merge with its sibling" % (
+                "  [lv.%d-MINIMIZATION-STATE %s] Same as sibling state %s. Merge with its sibling" % (pm.current_level,
                     cand_s.name, md.dst_s.name))
         elif check_dupstate(pm, md, cand_s, 'r'):
-            print("  [MINIMIZATION-STATE %s] Same as relative state %s. Merge with its relative" % (
+            print("  [lv.%d-MINIMIZATION-STATE %s] Same as relative state %s. Merge with its relative" % (pm.current_level,
                 cand_s.name, md.dst_s.name))
             logger.debug(
-                "  [MINIMIZATION-STATE %s] Same as relative state %s. Merge with its relative" % (
+                "  [lv.%d-MINIMIZATION-STATE %s] Same as relative state %s. Merge with its relative" % (pm.current_level,
                     cand_s.name, md.dst_s.name))
         else:
             # no dup state found.
-            print("  [MINIMIZATION-STATE %s] -> **** Unique state %s found ****" % (cand_s.name, cand_s.name))
-            logger.info("  [MINIMIZATION-STATE %s] -> **** Unique state %s found ****" % (cand_s.name, cand_s.name))
+            print("  [lv.%d-MINIMIZATION-STATE %s] -> **** Unique state %s found ****" % (pm.current_level, cand_s.name, cand_s.name))
+            logger.info("  [lv.%d-MINIMIZATION-STATE %s] -> **** Unique state %s found ****" % (pm.current_level, cand_s.name, cand_s.name))
 
         update_sm(pm, sm, cand_s, md)
 
