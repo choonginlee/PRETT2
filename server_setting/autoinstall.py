@@ -38,8 +38,9 @@ def install_apache(version):
 	os.system("sudo make install > /dev/null")
 	os.system("sudo cp %s/apache/httpd.conf /usr/local/httpd2/conf/httpd.conf" % path_root)
 	os.system("sudo cp %s/apache/httpd-ssl.conf /usr/local/httpd2/conf/extra/httpd-ssl.conf" % path_root)
-	os.system("sudo mkdir /usr/local/nginx/html/")
-	os.system("sudo cp %s/html/* /usr/local/nginx/html/" % path_root)
+	os.system("sudo mkdir /usr/share/nginx")
+	os.system("sudo mkdir /usr/share/nginx/html/")
+	os.system("sudo cp %s/html/* /usr/share/nginx/html/" % path_root)
 
 def install_nginx(version):
 	print("Start installing nginx [%s] ..." % version)
@@ -78,8 +79,9 @@ def install_h2o(version):
 	os.system("sudo make > /dev/null")
 	os.system("sudo make install > /dev/null")
 	os.system("sudo cp %s/h2o/h2oconf.conf /etc/h2oconf.conf" % path_root)
-	os.system("sudo mkdir /usr/local/nginx/html/")
-	os.system("sudo cp %s/html/* /usr/local/nginx/html/" % path_root)
+	os.system("sudo mkdir /usr/share/nginx")
+	os.system("sudo mkdir /usr/share/nginx/html/")
+	os.system("sudo cp %s/html/* /usr/share/nginx/html/" % path_root)
 
 if __name__ == "__main__":
 	if len(sys.argv) != 3:
