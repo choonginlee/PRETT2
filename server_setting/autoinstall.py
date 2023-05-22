@@ -26,9 +26,13 @@ def install_apache(version):
 	print("Installing prerequisite ...")
 	os.system("sudo apt-get update > /dev/null")
 	os.system("sudo apt-get -y install build-essential curl libpcre3-dev zlib1g-dev libssl1.0-dev libnghttp2-dev libapr1-dev libaprutil1-dev > /dev/null")
+	print("Removing other codes (Never mind the messages)...")
+	for sv in available_servers:
+		os.chdir("%s/%s/" % (path_root, sv))
+		for subv in available_servers[sv]:
+			os.system("sudo rm -r %s > /dev/null" % subv)
 	print("Extracting code ...")
 	os.chdir("%s/apache/" % path_root)
-	os.system("sudo rm -r %s" % version)
 	os.system("sudo tar -xzf %s.tar.gz" % version)
 	print("Configuring ...")
 	os.chdir("%s/apache/%s" % (path_root, version))
@@ -47,9 +51,13 @@ def install_nginx(version):
 	print("Installing prerequisite ...")
 	os.system("sudo apt-get update > /dev/null")
 	os.system("sudo apt-get -y install build-essential curl libpcre3-dev zlib1g-dev libssl1.0-dev > /dev/null")
+	print("Removing other codes (Never mind the messages)...")
+	for sv in available_servers:
+		os.chdir("%s/%s/" % (path_root, sv))
+		for subv in available_servers[sv]:
+			os.system("sudo rm -r %s > /dev/null" % subv)
 	print("Extracting code ...")
 	os.chdir("%s/nginx" % path_root)
-	os.system("sudo rm -r %s" % version)
 	os.system("sudo tar -xzf %s.tar.gz" % version)
 	print("Configuring ...")
 	os.chdir("%s/nginx/%s" % (path_root, version))
@@ -66,9 +74,13 @@ def install_h2o(version):
 	print("Installing prerequisite ...")
 	os.system("sudo apt-get update > /dev/null")
 	os.system("sudo apt-get -y install cmake > /dev/null")
+	print("Removing other codes (Never mind the messages)...")
+	for sv in available_servers:
+		os.chdir("%s/%s/" % (path_root, sv))
+		for subv in available_servers[sv]:
+			os.system("sudo rm -r %s > /dev/null" % subv)
 	print("Extracting code ...")
 	os.chdir("%s/h2o" % path_root)
-	os.system("sudo rm -r %s" % version)
 	os.system("sudo tar -xzf %s.tar.gz" % tarversion)
 	print("Configuring ...")
 	os.chdir("%s/h2o/%s" % (path_root, version))
@@ -98,6 +110,7 @@ if __name__ == "__main__":
 		sys.exit()
 
 	print("[+] We got the server name and version ... Looks good!")
+
 	if server == "apache":
 		install_apache(version)
 	elif server == "nginx":
