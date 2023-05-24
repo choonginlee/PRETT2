@@ -9,15 +9,45 @@ import scapy.contrib.http2 as h2
 import time
 import sys
 import ssl
-import sslkeylog
 import socket
 import logging
 import os
 logger = logging.getLogger(__name__)
-os.environ["SSLKEYLOGFILE"] = "sslkey_scapy.txt"
-sslkeylog.set_keylog("sslkey_scapy.txt")
 
-def modeller_h2(http2_basic_messages, dst_ip):
+ssl_ctx = None
+
+def modeller_h2(http2_basic_messages, dst_ip, outdir):
+	global ssl_ctx
+	
+	ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+	ssl_ctx.keylog_filename = "%s/sslkey_scapy.txt" % outdir
+
+	# Building the SSL context
+	ssl_ctx.set_ciphers(':'.join([  # List from ANSSI TLS guide v.1.1 p.51
+					'ECDHE-ECDSA-AES256-GCM-SHA384',
+					'ECDHE-RSA-AES256-GCM-SHA384',
+					'ECDHE-ECDSA-AES128-GCM-SHA256',
+					'ECDHE-RSA-AES128-GCM-SHA256',
+					'ECDHE-ECDSA-AES256-SHA384',
+					'ECDHE-RSA-AES256-SHA384',
+					'ECDHE-ECDSA-AES128-SHA256',
+					'ECDHE-RSA-AES128-SHA256',
+					'ECDHE-ECDSA-CAMELLIA256-SHA384',
+					'ECDHE-RSA-CAMELLIA256-SHA384',
+					'ECDHE-ECDSA-CAMELLIA128-SHA256',
+					'ECDHE-RSA-CAMELLIA128-SHA256',
+					'DHE-RSA-AES256-GCM-SHA384',
+					'DHE-RSA-AES128-GCM-SHA256',
+					'DHE-RSA-AES256-SHA256',
+					'DHE-RSA-AES128-SHA256',
+					'AES256-GCM-SHA384',
+					'AES128-GCM-SHA256',
+					'AES256-SHA256',
+					'AES128-SHA256',
+					'CAMELLIA128-SHA256'
+				]))     
+	ssl_ctx.set_alpn_protocols(['h2'])  # h2 is a RFC7540-hardcoded value
+
 	g_start_time = time.time()
 	print("\n[STEP 3] Modeling started at %s" % time.ctime(g_start_time))
 	# pm is for modeling status, 
@@ -62,7 +92,7 @@ def modeller_h2(http2_basic_messages, dst_ip):
 			break
 
 		### Graph drawing ###
-		graphname = "diagram/level_" + str(pm.current_level-1) + ".png"
+		graphname = "%s/diagram/level_" % outdir + str(pm.current_level-1) + ".png"
 		sm.get_graph().draw(graphname, prog='dot')
 		with open(graphname.replace(".png", ".json"), "w") as jsonfile:
 			json.dump(sm.markup, jsonfile, indent=2)
@@ -70,7 +100,7 @@ def modeller_h2(http2_basic_messages, dst_ip):
 	elapsed_time = time.time() - g_start_time
 	print ("[+] All jobs done. Total elapsed time is ", elapsed_time)
 	### Graph drawing ###
-	graphname = "diagram/level_" + str(pm.current_level-1) + "(fin).png"
+	graphname = "%s/diagram/level_" % outdir + str(pm.current_level-1) + "(fin).png"
 	sm.get_graph().draw(graphname, prog='dot')
 	with open(graphname.replace(".png", ".json"), "w") as jsonfile:
 		json.dump(sm.markup, jsonfile, indent=2)
@@ -101,33 +131,6 @@ def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
 	if hasattr(socket, 'SO_REUSEPORT'):
 		s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 	ip_and_port = l[0][4]
-
-	# Building the SSL context
-	ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-	ssl_ctx.set_ciphers(':'.join([  # List from ANSSI TLS guide v.1.1 p.51
-					'ECDHE-ECDSA-AES256-GCM-SHA384',
-					'ECDHE-RSA-AES256-GCM-SHA384',
-					'ECDHE-ECDSA-AES128-GCM-SHA256',
-					'ECDHE-RSA-AES128-GCM-SHA256',
-					'ECDHE-ECDSA-AES256-SHA384',
-					'ECDHE-RSA-AES256-SHA384',
-					'ECDHE-ECDSA-AES128-SHA256',
-					'ECDHE-RSA-AES128-SHA256',
-					'ECDHE-ECDSA-CAMELLIA256-SHA384',
-					'ECDHE-RSA-CAMELLIA256-SHA384',
-					'ECDHE-ECDSA-CAMELLIA128-SHA256',
-					'ECDHE-RSA-CAMELLIA128-SHA256',
-					'DHE-RSA-AES256-GCM-SHA384',
-					'DHE-RSA-AES128-GCM-SHA256',
-					'DHE-RSA-AES256-SHA256',
-					'DHE-RSA-AES128-SHA256',
-					'AES256-GCM-SHA384',
-					'AES128-GCM-SHA256',
-					'AES256-SHA256',
-					'AES128-SHA256',
-					'CAMELLIA128-SHA256'
-				]))     
-	ssl_ctx.set_alpn_protocols(['h2'])  # h2 is a RFC7540-hardcoded value
 
 	########## Connect SSL for HTTP2 ##########
 	ssl_sock = None

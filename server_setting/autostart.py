@@ -9,7 +9,8 @@ path_root = os.path.dirname(os.path.abspath(__file__))
 
 def usage():
 	print("[+] This script is for automatic startup for a server.")
-	print("[+] Usage: python %s <server_type>" % (sys.argv[0]))
+	print("[+] Usage: python2 %s <server_type>" % (sys.argv[0]))
+	print("[+] Usage: python3 %s <server_type>" % (sys.argv[0]))
 	sys.exit()
 
 if __name__ == "__main__":
@@ -27,12 +28,14 @@ if __name__ == "__main__":
 	if server == "apache":
 		output = subprocess.check_output("sudo /usr/local/httpd2/bin/httpd", shell=True)
 		output = subprocess.check_output("sudo curl -k -I https://localhost", shell=True)
+		output = output.decode()
 		p = re.compile('server: Apache/\d+\.\d+\.\d+')
 		res = p.findall(output)[0]
 		server = res[8:]
 	elif server == "nginx":
 		output = subprocess.check_output("sudo /usr/local/nginx/nginx", shell=True)
 		output = subprocess.check_output("sudo curl -k -I https://localhost", shell=True)
+		output = output.decode()
 		p = re.compile('server: nginx/\d+\.\d+\.\d+')
 		res = p.findall(output)[0]
 		server = res[8:]
