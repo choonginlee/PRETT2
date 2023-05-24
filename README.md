@@ -20,7 +20,7 @@ PRETT/2 is an automated protocol modeler for HTTP/2 servers.
 ### How To Run
 - specify timeout of server both in server configuration and ProtoModel class in statemachine.py.
 - run with python interpreter specifying target IP
-- ex) sudo python viogram.py 192.168.107.133
+- ex) sudo python prett2.py 192.168.107.133
 
 ## Running with python < 3.8
 - It is not runnable with python < 3.8 because of keylogging.
