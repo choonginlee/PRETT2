@@ -56,12 +56,6 @@ if __name__ == "__main__":
 	### Construct reverse engineering for HTTP/2
 	sm = modeller_h2.modeller_h2(http2_basic_messages, dst_ip, outdir)
 
-	### Convert state machine to CFG
-
-	### Extract violation grammar
-
-	### Validate HTTP/2 model
-
 else :
 	print ("[-] Invalid Input... exit...\n")
 	sys.exit()
