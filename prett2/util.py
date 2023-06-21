@@ -7,8 +7,8 @@ import scapy.layers.inet6 as inet6
 from scapy.utils import rdpcap
 
 frameInfoArr = ['DATA', 'HEADERS', 'PRIORITY', 'RST_STREAM', 'SETTINGS', 'PUSHPROMISE', 'PING', 'GO_AWAY',
-                'WINDOW_UPDATE', 'CONTINUATION']
-frameShortInfoArr = ['DA', 'HE', 'PR', 'RS', 'SE', 'PU', 'PI', 'GO', 'WI', 'CO']
+                'WINDOW_UPDATE', 'CONTINUATION', 'RAW']
+frameShortInfoArr = ['DA', 'HE', 'PR', 'RS', 'SE', 'PU', 'PI', 'GO', 'WI', 'CO', 'RA']
 
 
 ############# GENERAL #############
@@ -77,10 +77,10 @@ def h2msg_from_pcap(f):
 
     msgid = 1
     # Debugging http2 messages frame by frame
-    print("  [DBG] messages (shortened)")
+    # print("  [DBG] messages (shortened)")
     for h2msg in h2msg_arr:
         h2msg_str = h2msg_to_str(h2msg)
-        print("    [ ] h2msg %d: %s " % (msgid, h2msg_str))
+        print("    - h2msg %d: %s " % (msgid, h2msg_str))
         msgid += 1
 
     # [NOTE] An HTTP2 message is a sequence of frames.

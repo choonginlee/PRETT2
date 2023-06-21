@@ -58,7 +58,7 @@ if __name__ == "__main__":
 					for key in isodict.keys():
 						if sm_name1 in isodict[key] or sm_name2 in isodict[key]:
 							is_unique = False
-							print(sm_name1, sm_name2)
+							# print(sm_name1, sm_name2)
 							isodict[key].update([sm_name1, sm_name2])
 							break
 					if is_unique:
@@ -81,6 +81,14 @@ if __name__ == "__main__":
 					else:
 						isodict["T-"+str(typeno)] = set([sm_name1])
 						isodict["T-"+str(typeno)+"-sub"] = set([sm_name2])
+						typeno += 1
+				else:
+					is_unique = True
+					for key in isodict.keys():
+						if sm_name1 in isodict[key]:
+							is_unique = False
+					if is_unique:
+						isodict["T-"+str(typeno)] = set([sm_name1])
 						typeno += 1
 
 	allset = set([])

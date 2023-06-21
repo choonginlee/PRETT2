@@ -3,12 +3,9 @@ import sys
 import pickle
 import logging
 import time
-import re
 import json
 import binascii
 import random
-# import matplotlib.pyplot as plt
-# import matplotlib.image as mplotimg
 import socket
 import ssl
 import string
@@ -18,26 +15,14 @@ import scapy.contrib.http2 as h2
 import scapy.config
 import scapy.packet as packet
 from scapy.compat import raw, plain_str, hex_bytes, orb, chb, bytes_encode
-# from transitions.extensions import GraphMachine as Machine
-# from transitions.extensions import GraphMachine
 from scapy.all import *
 from collections import OrderedDict
 import util
 import networkx as nx
+from tqdm import tqdm
 
 dst_ip = '127.0.0.1'
-# target_binary = 'Apache 2.4.29'
-frameInfoArr = ['DATA','HEADERS','PRIORITY','RST_STREAM','SETTINGS','PUSHPROMISE','PING','GO_AWAY','WINDOW_UPDATE','CONTINUATION','RAW']
-frameShortInfoArr = ['DA','HE','PR','RS','SE','PU','PI','GO','WI','CO','RA']
-
-sniff_frame = None
 jsonFileDescripter = None
-
-def http2_sniff_parser(packet):
-	global sniff_frame
-	# sniff_frame = h2.H2Seq()
-	sniff_frame = h2.H2Frame(packet)
-	# sniff_frame.frames.append(sniff_frameBuf)
 
 def signal_handler(sig, frame):
 	global jsonFileDescripter
@@ -67,28 +52,88 @@ class Tee(object):
 
 class Http2fuzz:
 	def __init__(self, current_state = "init", init_time = None, pcap = None, sm_json = None):
+		### General ###
 		self.fuzzer_version = 'fuzz_prett2_v1'
-		self.current_state = current_state
-		self.past_state = '0'
-		self.state_array = []
-		self.state_dic = OrderedDict()
-		self.transition_dic = OrderedDict()
-		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9,10]
-		self.timeOutNum = 600
 		self.init_time = init_time
+		self.out_json = ''
+		self.state_move_frame_option = "y"
+
+		### State machine reconstruction ###
 		self.pcap = pcap
 		self.sm_json = sm_json
+
+		### State machine as graph ###
+		self.current_state = current_state
+		self.target_transition = None
+		self.transition_dic = OrderedDict()
 		self.graph = nx.DiGraph()
 
-		#  below variable would be used for server binary dict(list type)
-		self.token_db = None
+		### Connection ###
+		self.ssl_ctx = None
 		self.txcount = -1
-		self.out_json = ''
-		self.frame_number_dict = None
-		# self.target_binary = targetBinary
-		self.state_move_frame_option = "y"
+
+		### Fuzzing configuration ###
+		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9,10]
+		self.timeOutNum = 600
 		self.dosChecksocketOpenNum = 300
-		self.dosCheckWaitTime = 5
+		self.dosCheckWaitTime = 6
+		self.frame_number_dict = None
+
+		### Server binary tokens ###
+		self.token_db = None
+
+	def ssl_setting(self):
+		# Building the SSL context
+		self.ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+		self.ssl_ctx.keylog_filename = "/home/oren/sslkey_scapy.txt"
+		self.ssl_ctx.set_ciphers(':'.join([  # List from ANSSI TLS guide v.1.1 p.51
+                		'ECDHE-ECDSA-AES256-GCM-SHA384',
+                		'ECDHE-RSA-AES256-GCM-SHA384',
+                		'ECDHE-ECDSA-AES128-GCM-SHA256',
+                		'ECDHE-RSA-AES128-GCM-SHA256',
+                		'ECDHE-ECDSA-AES256-SHA384',
+                		'ECDHE-RSA-AES256-SHA384',
+                		'ECDHE-ECDSA-AES128-SHA256',
+                		'ECDHE-RSA-AES128-SHA256',
+                		'ECDHE-ECDSA-CAMELLIA256-SHA384',
+                		'ECDHE-RSA-CAMELLIA256-SHA384',
+                		'ECDHE-ECDSA-CAMELLIA128-SHA256',
+                		'ECDHE-RSA-CAMELLIA128-SHA256',
+                		'DHE-RSA-AES256-GCM-SHA384',
+                		'DHE-RSA-AES128-GCM-SHA256',
+                		'DHE-RSA-AES256-SHA256',
+                		'DHE-RSA-AES128-SHA256',
+                		'AES256-GCM-SHA384',
+                		'AES128-GCM-SHA256',
+                		'AES256-SHA256',
+                		'AES128-SHA256',
+                		'CAMELLIA128-SHA256'
+            		]))     
+		self.ssl_ctx.set_alpn_protocols(['h2'])  # h2 is a RFC7540-hardcoded value
+
+	def initframe_setting(self):
+		H2_CLIENT_CONNECTION_PREFACE = hex_bytes('505249202a20485454502f322e300d0a0d0a534d0d0a0d0a')
+		srv_max_frm_sz = 1<<14
+		srv_hdr_tbl_sz = 4096
+		srv_max_hdr_tbl_sz = 0
+		srv_global_window = 1<<14
+		srv_max_hdr_lst_sz = 0
+
+		prefaceFrame = packet.Raw(H2_CLIENT_CONNECTION_PREFACE)
+		firstSETTINGS = h2.H2Frame()/h2.H2SettingsFrame()
+		max_frm_sz = (1 << 24) - 1
+		max_hdr_tbl_sz = (1 << 16) - 1
+		win_sz = (1 << 31) - 1
+		firstSETTINGS.settings = [
+    		h2.H2Setting(id = h2.H2Setting.SETTINGS_ENABLE_PUSH, value=1),
+    		h2.H2Setting(id = h2.H2Setting.SETTINGS_INITIAL_WINDOW_SIZE, value=win_sz),
+    		h2.H2Setting(id = h2.H2Setting.SETTINGS_HEADER_TABLE_SIZE, value=max_hdr_tbl_sz),
+    		h2.H2Setting(id = h2.H2Setting.SETTINGS_MAX_FRAME_SIZE, value=max_frm_sz),
+		]
+
+		self.past_state = '0'
+		self.current_state = 'init'
+		return prefaceFrame, firstSETTINGS
 
 
 # 	def make_frame_array(self, frameStrBuf):
@@ -198,8 +243,7 @@ class Http2fuzz:
 # 		return h2seq
 
 	def open_socket(self):
-		global dst_ip, sniff_frame,frameInfoArr,frameShortInfoArr
-
+		global dst_ip, frameInfoArr,frameShortInfoArr
 		H2_CLIENT_CONNECTION_PREFACE = hex_bytes('505249202a20485454502f322e300d0a0d0a534d0d0a0d0a')
 		
 		assert(ssl.HAS_ALPN)
@@ -210,106 +254,43 @@ class Http2fuzz:
 		s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		if hasattr(socket, 'SO_REUSEPORT'):
 			s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-		ip_and_port = l[0][4]
-	
-		# Building the SSL context
-		ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-		ssl_ctx.set_ciphers(':'.join([  # List from ANSSI TLS guide v.1.1 p.51
-                		'ECDHE-ECDSA-AES256-GCM-SHA384',
-                		'ECDHE-RSA-AES256-GCM-SHA384',
-                		'ECDHE-ECDSA-AES128-GCM-SHA256',
-                		'ECDHE-RSA-AES128-GCM-SHA256',
-                		'ECDHE-ECDSA-AES256-SHA384',
-                		'ECDHE-RSA-AES256-SHA384',
-                		'ECDHE-ECDSA-AES128-SHA256',
-                		'ECDHE-RSA-AES128-SHA256',
-                		'ECDHE-ECDSA-CAMELLIA256-SHA384',
-                		'ECDHE-RSA-CAMELLIA256-SHA384',
-                		'ECDHE-ECDSA-CAMELLIA128-SHA256',
-                		'ECDHE-RSA-CAMELLIA128-SHA256',
-                		'DHE-RSA-AES256-GCM-SHA384',
-                		'DHE-RSA-AES128-GCM-SHA256',
-                		'DHE-RSA-AES256-SHA256',
-                		'DHE-RSA-AES128-SHA256',
-                		'AES256-GCM-SHA384',
-                		'AES128-GCM-SHA256',
-                		'AES256-SHA256',
-                		'AES128-SHA256',
-                		'CAMELLIA128-SHA256'
-            		]))     
-		ssl_ctx.set_alpn_protocols(['h2'])  # h2 is a RFC7540-hardcoded value
-		ssl_sock = ssl_ctx.wrap_socket(s)
+		ssl_ip_port = l[0][4]
 	
 		# something wrong when nginx pruning 25
-		ssl_sock.connect(ip_and_port)
-		# print ("Fine!")
+		ssl_sock = self.ssl_ctx.wrap_socket(s)
+		ssl_sock.connect(ssl_ip_port)
 		assert('h2' == ssl_sock.selected_alpn_protocol())
 		scapy.config.conf.debug_dissector = True
-		ss = supersocket.SSLStreamSocket(ssl_sock, basecls=h2.H2Frame)
+		ss = supersocket.SSLStreamSocket(ssl_sock, basecls=h2.H2Seq)
 
-		# prefaceFrame = packet.Raw(H2_CLIENT_CONNECTION_PREFACE)
-		# ss.send(prefaceFrame)
 		return ss
 
-	def state_move(self):
-		# state_array = ['0', '1', '2', '3', '9', '10', '15']
-		# state_dic = OrderedDict()
-		# state_dic['0'] = []
-		# state_dic['1'] = ['HE']
-		# state_dic['2'] = ['SE-SE-WI']
-		# state_dic['3'] = ['SE']
-		# state_dic['9'] = ['HE-WE-SE-SE']
-		# state_dic['10'] = ['HE-SE']
-		# state_dic['15'] = ['SE-SE-WI-HE']
-		# state_dic['0'] = {'1':'SE', '2':'SE', '3':'WI'}	
-		# state_dic['1'] = {'9':'WI-SE-SE', '10':'SE'}	
-		# state_dic['2'] = {'15':'HE'}
+	def get_next_transition(self, td):
+		# Get next transition. If target transition is none, get the first transition
+		return td.popitem(last=False)
 
-		state_len = len(self.state_array)
-		array_index = 0
+	def get_moving_frame(self, t_transition):
+		# Get moving frames to reach the source of target trasition
+		sd = t_transition.split("->")
+		source = sd[0]
+		dest = sd[1]
 
-		for index, value in enumerate(self.state_array):
-			if self.current_state == value:
-				array_index = index
+		mov_msg_list = []
 
-		self.past_state = self.current_state
-		# return_state_move_msg = self.make_frame_array(self.state_dic[self.current_state])
-		return_state_move_msg = self.state_dic[self.current_state]
-		print("[+] Current_state: %s" % self.current_state)
-		print("[+] Current_state msg: "),
-		self.state_dic[self.current_state].show()
+		states_to_source = nx.shortest_path(self.graph, source='init', target=source)
+		# get transition messages following states_to_source
+		for i in range(0, len(states_to_source)-1):
+			sub_src = states_to_source[i]
+			sub_dst = states_to_source[i+1]
+			sub_trs = sub_src+"->"+sub_dst
+			sub_msg = self.transition_dic[sub_trs][0]
+			if len(sub_msg.frames) == 0:
+				continue
+			mov_msg_list.append(sub_msg)
+		return mov_msg_list
 
-		array_index = (array_index + 1) % state_len
-		self.current_state = self.state_array[array_index]
-
-		# print()
-
-		# return_state_move_msg = self.make_frame_array(state_dic[self.current_state])
-		return return_state_move_msg
 
 	def make_fuzzing_frame_seq(self, frameStrBuf):
-		# global dst_ip
-
-		# httpSchemes = ["http", "https", "ftp", "mailto", "aim", "file", "dns",
-		# "fax", "imap", "ldap", "ldaps", "smb", "pop", "rtsp", "snmp",
-		# "telnet", "xmpp", "chrome", "feed", "irc", "mms", "ssh",
-		# "sftp", "sms", "url", "about", "sip", "h323", "tel"]
-
-		# httpMethods = ["OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT", "FOOBAR"]
-
-		# httpPaths = ["/index.html", "/index.php", "/", "index"]
-
-		# httpImageTypes = [
-		# "image/bmp", "image/cmu-raster", "image/fif", "image/florian", "image/g3fax",
-		# "image/gif", "image/ief", "image/jpeg", "image/jutvision", "image/naplps", "image/pict", "image/pjpeg", "image/png",
-		# "image/tiff", "image/vasa", "image/vnd.dwg", "image/vnd.fpx", "image/vnd.net-fpx", "image/vnd.rn-realflash",
-		# "image/vnd.rn-realpix", "image/vnd.wap.wbmp", "image/vnd.xiff", "image/xbm", "image/xpm", "message/rfc822", "model/iges",
-		# "model/vnd.dwf", "model/vrml", "music/crescendo", "text/asp", "text/css", "text/html", "text/mcf", "text/pascal",
-		# "text/plain", "text/richtext", "text/scriplet", "text/sgml", "text/tab-separated-values", "text/uri-list", "text/vnd.abc",
-		# "text/vnd.fmi.flexstor", "text/vnd.rn-realtext", "text/vnd.wap.wml", "text/vnd.wap.wmlscript", "text/webviewhtml",
-		# "text/xml", "windows/metafile", "www/mime", "xgl/drawing", "xgl/movie",
-		# ]
-
 		# Below codes used for binary token used
 		httpSchemes = self.token_db
 		httpMethods = self.token_db
@@ -317,33 +298,16 @@ class Http2fuzz:
 		httpImageTypes = self.token_db
 		dstIPArr = self.token_db
 
-
-		# move_state_msg_arr: ['HE-SE-SE', DE-PE, ....]
-		# send_frame_seq: 'HE-DE'
-		frameDashStrArr = []
-		if (str(type(frameStrBuf)) == "<type 'str'>"):
-			frameDashStrArr.append(frameStrBuf)
-		else:
-			frameDashStrArr.extend(frameStrBuf)
-	
 		frameStrArr = []
-		for frameEachSeq in frameDashStrArr:
-			splitFrameEachSeq = frameEachSeq.split('-')
-			for splitFrameEach in splitFrameEachSeq:
-				frameStrArr.append(splitFrameEach)
-
-		srv_max_frm_sz = 1<<14
-		srv_hdr_tbl_sz = 4096
-		srv_max_hdr_tbl_sz = 0
-		srv_global_window = 1<<14
-		srv_max_hdr_lst_sz = 0
+		frameStrArr = frameStrBuf.split('-')
+		# print("[DEBUG] frameStrBuf :", frameStrBuf)
+		# print("[DEBUG] frameStrArr :", frameStrArr)
 	
 		h2seq = h2.H2Seq()
 	
 		for frameValue in frameStrArr:
 
 			if frameValue == 'DA':
-				# print("??1")
 				dataFrameBuf = h2.H2Frame()/h2.H2DataFrame()
 				# while True:
 				# 	stream_id_buf = random.randrange(1, (1<<31)) - 1
@@ -363,7 +327,6 @@ class Http2fuzz:
 				# print("??3")
 
 			elif frameValue == 'HE':
-
 				qry_frontpage = self.make_header_random_args()
 
 				qry_frontpage.frames[0].stream_id = self.makeRandomValue()
@@ -374,10 +337,6 @@ class Http2fuzz:
 	
 			elif frameValue == 'SE':
 				settingFrameBuf = h2.H2Frame()/h2.H2SettingsFrame()	
-				# max_frm_sz = (1 << 24) - 1
-				# max_hdr_tbl_sz = (1 << 16) - 1
-				# win_sz = (1 << 31) - 1
-				# max_hdr_list_sz = (1 << 31) - 1 
 
 				frame_size_buf = self.makeRandomValue()
 				frame_header_table_size_buf = self.makeRandomValue()
@@ -406,8 +365,6 @@ class Http2fuzz:
 				# pushPromiseFrameBuf.PromiseStreamID = random.randint(0, max_promise_stream_id)
 				# print(pushPromiseFrameBuf['HTTP/2 Push Promise Frame'].reserved)
 				pushPromiseFrameBuf['HTTP/2 Push Promise Frame'].stream_id = self.makeRandomValue()
-				
-
 
 				qry_frontpage = self.make_header_random_args()
 				headerFrameBuf = qry_frontpage.frames[0]
@@ -497,6 +454,7 @@ class Http2fuzz:
 	
 		return h2seq
 
+
 	def make_fuzzing_packet(self, strategy):
 		global dst_ip
 		frameShortInfoArr_forFuzz = ['DA','HE','PR','SE','PU','PI','WI','CO','RA']
@@ -505,36 +463,45 @@ class Http2fuzz:
 		fuzzing_frame_seq = None
 		# strategy: 0 make frame field mutation
 		self.txcount += 1
-		print("[+] packet number : %d" % int(self.txcount))
-		if strategy >= 0 and strategy <= 8:
+		print("[DEBUG] make_fuzzing_packet(): txcount = %d" % int(self.txcount))
+		if strategy < 9:
 			frameStr = frameShortInfoArr_forFuzz[strategy]
-			print("[+] Single frame sent : %s" % frameStr)
+			print("[+] Single frame to be sent : %s" % frameStr)
 			fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
 			# fuzzing_frame_seq.show()
 
-		elif strategy == 9:
+		else:
 			frameStr = ''
 			# 0 to end of List
 			for i in range(0, (len(frameShortInfoArr_forFuzz))):
 				frameStr += (frameShortInfoArr_forFuzz[i]+'-')
 			frameStr = frameStr[:-1]
-			print("[+] All frames sent : %s" % frameStr)
+			print("[+] All frames to be sent : %s" % frameStr)
 			fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
 			# fuzzing_frame_seq.show()
 
-		elif strategy == 10:
-			frameNum = random.randint(1, 1000)
-			frameStr = ''
-			for i in range(0, frameNum):
-				frameIndex = random.randint(0, len(frameShortInfoArr_forFuzz) - 1)
-				frameStr += (frameShortInfoArr_forFuzz[frameIndex]+'-')
-			frameStr = frameStr[:-1]
-			print("[+] Random frames sent : %s" % frameStr)
-			fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
+		# elif strategy == 10:
+		# 	frameNum = self.txcount
+		# 	frameStr = ''
+		# 	for i in range(0, frameNum):
+		# 		frameIndex = random.randint(0, len(frameShortInfoArr_forFuzz) - 1)
+		# 		frameStr += (frameShortInfoArr_forFuzz[frameIndex]+'-')
+		# 	frameStr = frameStr[:-1]
+		# 	print("[+] Random frames to be sent : %d frames" % len(frameStr))
+		# 	fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
 
 		# To check crash added ping frame
 		# fuzzing_frame_seq.frames.append(h2.H2Frame()/h2.H2PingFrame())
 		# fuzzing_frame_seq.frames.append(h2.H2Frame()/h2.H2PingFrame())
+		return fuzzing_frame_seq
+
+	def make_fuzzing_packet2(self, t_msg):
+		frameStr = ''
+		for msg in t_msg:
+			msg_short_str = util.h2msg_to_str(msg)
+			frameStr += msg_short_str+'-'
+		frameStr = frameStr[:-1]
+		fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
 		return fuzzing_frame_seq
 
 	def make_header_random_args(self):
@@ -580,7 +547,7 @@ user-agent:" + user_agent_var + "\n"
 
 		tblhdr = h2.HPackHdrTable()
 		qry_frontpage = tblhdr.parse_txt_hdrs(
-			headerArgs,
+			str.encode(headerArgs),
 			stream_id=1,
 			max_frm_sz=srv_max_frm_sz,
 			max_hdr_lst_sz=srv_max_hdr_lst_sz,
@@ -625,43 +592,77 @@ user-agent:" + user_agent_var + "\n"
 		jsonFileDescripter.write("\t\"time\" : \"{0}\",\n".format(dateStrBuf))
 		jsonFileDescripter.write("\t\"crash_type\" : \"{0}\",\n".format(crash_type))
 
-		frameID = '00'
 		jsonFileDescripter.write("\t\"state_move_frames\" : [\n")
-		for index, frame in enumerate(state_move_frame.frames):
-			frame_str = binascii.hexlify(raw(frame))
+		frame_no = 0
+		for msg in state_move_frame:
+			frame_no += 1
 			try:
 				jsonFileDescripter.write("\t\t{")
-				jsonFileDescripter.write("\"frame_index\" : {0}, ".format(str(index)))
-				jsonFileDescripter.write("\"frame_data\" : \"0x{0}\"".format(frame_str))
-				if index == (len(state_move_frame.frames)-1):
+				jsonFileDescripter.write("\"frame_no\" : {0}, ".format(str(frame_no)))
+				jsonFileDescripter.write("\"frame_data\" : \"{0}\"".format(util.h2msg_to_str(msg)))
+				if frame_no == len(state_move_frame)-1:
 					jsonFileDescripter.write("\n\t\t}\n")
 					break
 				jsonFileDescripter.write("\n\t\t},\n")
 			except Exception as e:
-				print (e)
-				print ("error! 1")
+				print ("  [E] write_binary_file():", e)
 				continue
 		jsonFileDescripter.write("\t],\n")
 
-		frameID = '01'
-		# jsonFileDescripter.write('[+]Send Frames:\n')
-		jsonFileDescripter.write("\t\"send_frames\" : [\n")
-		for index, frame in enumerate(send_frame.frames):
-			frame_str = binascii.hexlify(raw(frame))
+		jsonFileDescripter.write("\t\"fuzzing_frames\" : [\n")
+		frame_no = 0
+		for msg in send_frame:
+			frame_no += 1
 			try:
 				jsonFileDescripter.write("\t\t{")
-				jsonFileDescripter.write("\"frame_index\" : {0},".format(str(index)))
-				jsonFileDescripter.write("\"frame_data\" : \"0x{0}\"".format(frame_str))
-				if index == (len(send_frame.frames)-1):
+				jsonFileDescripter.write("\"frame_no\" : {0}, ".format(str(frame_no)))
+				jsonFileDescripter.write("\"frame_data\" : \"{0}\"".format(util.h2msg_to_str(msg)))
+				if frame_no == len(state_move_frame)-1:
 					jsonFileDescripter.write("\n\t\t}\n")
 					break
 				jsonFileDescripter.write("\n\t\t},\n")
-			except:
-				print ("error! 2")
+			except Exception as e:
+				print ("  [E] write_binary_file():", e)
 				continue
-		jsonFileDescripter.write("\t]\n")
+		jsonFileDescripter.write("\t],\n")
 
-		frameID = '02'
+		# frameID = '00'
+		# jsonFileDescripter.write("\t\"state_move_frames\" : [\n")
+		# for index, frame in enumerate(state_move_frame.frames):
+		# 	frame_str = binascii.hexlify(raw(frame))
+		# 	try:
+		# 		jsonFileDescripter.write("\t\t{")
+		# 		jsonFileDescripter.write("\"frame_index\" : {0}, ".format(str(index)))
+		# 		jsonFileDescripter.write("\"frame_data\" : \"0x{0}\"".format(frame_str))
+		# 		if index == (len(state_move_frame.frames)-1):
+		# 			jsonFileDescripter.write("\n\t\t}\n")
+		# 			break
+		# 		jsonFileDescripter.write("\n\t\t},\n")
+		# 	except Exception as e:
+		# 		print (e)
+		# 		print ("error! 1")
+		# 		continue
+		# jsonFileDescripter.write("\t],\n")
+
+		# frameID = '01'
+		# # jsonFileDescripter.write('[+]Send Frames:\n')
+		# jsonFileDescripter.write("\t\"send_frames\" : [\n")
+		# for index, frame in enumerate(send_frame.frames):
+		# 	frame_str = binascii.hexlify(raw(frame))
+		# 	try:
+		# 		jsonFileDescripter.write("\t\t{")
+		# 		jsonFileDescripter.write("\"frame_index\" : {0},".format(str(index)))
+		# 		jsonFileDescripter.write("\"frame_data\" : \"0x{0}\"".format(frame_str))
+		# 		if index == (len(send_frame.frames)-1):
+		# 			jsonFileDescripter.write("\n\t\t}\n")
+		# 			break
+		# 		jsonFileDescripter.write("\n\t\t},\n")
+		# 	except:
+		# 		print ("error! 2")
+		# 		continue
+		# jsonFileDescripter.write("\t]\n")
+
+		# frameID = '02'
 		# jsonFileDescripter.write('[+]Receive Frames:\n')
 		# jsonFileDescripter.write("\t\"receive_frames\" : [\n")
 		# for index, frame in enumerate(receive_frame.frames):
@@ -721,99 +722,129 @@ user-agent:" + user_agent_var + "\n"
 	# 		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9]
 	# 		self.dosChecksocketOpenNum = 300
 
+	def check_h2_response(self, ans, msg=None):
+		# Check if h2 message received from sr.
+		check = False
+		# FUNCTION 1: checking h2 message presence
+		if msg is None: 	
+			for s, r in ans:
+				if r[1].haslayer(h2.H2Seq):
+					check = True
+		# FUNCTION 2 : checking specific message
+		else: 				
+			for s, r in ans:
+				if msg in util.h2msg_to_str(r):
+					check = True
+		return check
 
 	def fuzzing_run(self):
-		global dst_ip, sniff_frame,frameInfoArr,frameShortInfoArr
+		global dst_ip, frameInfoArr,frameShortInfoArr
+		
+
 		self.frame_number_dict = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+		self.ssl_setting()
 		self.start_write_json_logging()
 		self.get_token_dict()
 		self.set_strategy()
 
-		H2_CLIENT_CONNECTION_PREFACE = hex_bytes('505249202a20485454502f322e300d0a0d0a534d0d0a0d0a')
-		srv_max_frm_sz = 1<<14
-		srv_hdr_tbl_sz = 4096
-		srv_max_hdr_tbl_sz = 0
-		srv_global_window = 1<<14
-		srv_max_hdr_lst_sz = 0
+		prefaceFrame, firstSETTINGS = self.initframe_setting()
+		init_msg = h2.H2Seq()
+		init_msg.frames = [prefaceFrame, firstSETTINGS]		
 
-		prefaceFrame = packet.Raw(H2_CLIENT_CONNECTION_PREFACE)
-		firstSETTINGS = h2.H2Frame()/h2.H2SettingsFrame()
-		max_frm_sz = (1 << 24) - 1
-		max_hdr_tbl_sz = (1 << 16) - 1
-		win_sz = (1 << 31) - 1
-		firstSETTINGS.settings = [
-    		h2.H2Setting(id = h2.H2Setting.SETTINGS_ENABLE_PUSH, value=1),
-    		h2.H2Setting(id = h2.H2Setting.SETTINGS_INITIAL_WINDOW_SIZE, value=win_sz),
-    		h2.H2Setting(id = h2.H2Setting.SETTINGS_HEADER_TABLE_SIZE, value=max_hdr_tbl_sz),
-    		h2.H2Setting(id = h2.H2Setting.SETTINGS_MAX_FRAME_SIZE, value=max_frm_sz),
-		]
+		print("[STEP 4] Start Fuzzing...")
 
-		self.past_state = '0'
-		self.current_state = '0'
-
-
+		td_traverse = OrderedDict()
+		t_index = 0
 		while True:
-			state_move_frame_seq = self.state_move()
-			# self.count_frames(state_move_frame_seq)
+			if len(td_traverse) == 0:
+				if t_index == len(self.transition_dic):
+					print("  [+] Finished all %d transitions!" % len(self.transition_dic))
+					# sys.exit()
+				td_traverse = self.transition_dic.copy()
+				t_index = 0
+			t_index += 1
+			t_key, t_msg_info = self.get_next_transition(td_traverse)
+			t_msg = t_msg_info[0]
+			t_msg_rtime = t_msg_info[1]
 
-			# state_move_frame_seq_str = self.make_frame_array_to_str(state_move_frame_seq)
+			mov_msg_list = self.get_moving_frame(t_key)
+			# if len(mov_msg_list) == 0:
+			# 	continue
+
+			# print("[DEBUG] reaching to transition %s" % t_key)
+
+			self.fuzzing_strategy = [1]
 
 			for strategy in self.fuzzing_strategy:
-				# total_send_frame.frames.extend(state_move_frame_seq.frames)
-				fuzzing_frame_seq = self.make_fuzzing_packet(strategy)
-				# total_send_frame.frames.extend(fuzzing_frame_seq.frames)
-				# self.count_frames(fuzzing_frame_seq)
-
-				# total_send_frame.show()
-				# decision = input('Do you want to send it?')
-				# print (decision)
-				# open socket
-
-				
+				# fuzz_msg = self.make_fuzzing_packet(strategy)
+				fuzz_msg = self.make_fuzzing_packet2(t_msg)
 				totalelapsedTime = 0
 				timeOutElapsedTime = 0
 
-				# send state_move_frame_seq and fuzzing_msg
-				total_send_frame = h2.H2Seq()
-				total_send_frame.frames = [
-					prefaceFrame,
-					firstSETTINGS,
-					state_move_frame_seq,
-					fuzzing_frame_seq
-				]
-				# total_send_frame.frames.extend(state_move_frame_seq.frames)
-				# total_send_frame.frames.extend(fuzzing_frame_seq.frames)
+				# print("[DEBUG] init_msg ----")
+				# init_msg.show()
+				# for msg in mov_msg_list:
+				# 	print("=====================")
+				# 	msg.show()
+				# print("[DEBUG] fuzz_msg ----")
+				# fuzz_msg.show()
 
-				# emptyReceiveFrames = h2.H2Seq()
-			
 				# TODO: if you use in other server binary you should change below variable
 				# self.dosChecksocketOpenNum = 300
-				self.dosCheckWaitTime = 20
 				socketArr = []
 				dosChecker = False
 				errorOutChecker = False
 
 				startTime = time.time()
 				now = time.localtime()
-				print("[+] Dos on multiple connection checking Start %02d.%02d %02d:%02d:%02d" % (now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec))
+				moving_msg_short = "" # for debugging
+				for mov_msg in mov_msg_list:
+					moving_msg_short += util.h2msg_to_str(mov_msg) + "|"
+				if len(moving_msg_short) > 0 and moving_msg_short[-1] == "|":
+					moving_msg_short = moving_msg_short[:-1]
+				# if(util.h2msg_to_str(t_msg) == "GO"):	
+				# 	continue
+				# print("[+] Dos on multiple connection checking Start %02d.%02d %02d:%02d:%02d" % (now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec))
+				print("  [STATUS] Transition [%d/%d]: I(%s)-M(%s)-T(%s)" % (t_index, len(self.transition_dic), util.h2msg_to_str(init_msg), moving_msg_short, t_key))
+				print("  [STATUS] Strategy   [%d/%d]: F(%s)" % (int(strategy), len(self.fuzzing_strategy), util.h2msg_to_str(fuzz_msg)))
 				dosCheckStartTime = now
-				for index in range(self.dosChecksocketOpenNum):
+				self.dosChecksocketOpenNum = 10
+				inter = 0
+				for index in tqdm(range(self.dosChecksocketOpenNum)):
 					# if int(elapsedMiliSec) > dosCheckWaitTime:
 					# 	dosChecker = True
 					# 	break
 					interConnectionStartTime = time.time()
+
 					try:
 						sockBuf = None
-						# sockOpened = open_socket()
 						sockBuf = self.open_socket()
 						socketArr.append(sockBuf)
-						sockBuf.send(total_send_frame)
+
+						### SENDING INITIAL MSG ###
+						ans = None
+						ans, unans = sockBuf.sr(init_msg, inter=inter, verbose=0)
+
+						### SENDING STATE MOVING MSG ###
+						for mov_msg in mov_msg_list:
+							ans = None
+							ans, unans = sockBuf.sr(mov_msg, inter=inter, verbose=0)
+						if self.check_h2_response(ans, "GO"):
+							print("  [D] GOAWAY frame while state moving. Skip...")
+							break
+
+						### SENDING FUZZING MSG ###
+						if util.h2msg_to_str(t_msg) == "GO":
+							# When sending GOAWAY, we do not expect any response.
+							sockBuf.send(fuzz_msg)					
+						else:
+							ans = None
+							ans, unans = sockBuf.sr(fuzz_msg, inter=inter, timeout=self.dosCheckWaitTime, verbose=0)
+
 					except Exception as e:
 						now = time.localtime()
-						print("[!] Error occured on fuzzing multiple connection %02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec))
-						# print (type(e))
-						# print("Exception: {}".format(type(e).__name__))
-						# print("Exception message: {}".format(e))
+						# print("[!] Error occured on fuzzing multiple connection %02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec))
+						print("Exception message: {}".format(e))
 
 						if str(e) == '[Errno 0] Error':
 							# print ('Errno Zero')
@@ -824,44 +855,55 @@ user-agent:" + user_agent_var + "\n"
 						elif str(e) == '[Errno 111] Connection refused':
 							# print ('Errno One hundred eleven')
 							print("[!] "+str(e)+" fuzzer shutdown!")
-							self.write_binary_file(state_move_frame_seq, fuzzing_frame_seq, dosCheckStartTime, "Shutdown")
+							# time.sleep(1)
+							self.write_binary_file(mov_msg_list, fuzz_msg, dosCheckStartTime, "Shutdown")
 							self.fuzzer_shutdown_error_no111()
 						# print (e)
 						errorOutChecker = True
 
 					if errorOutChecker == True:
-						self.write_binary_file(state_move_frame_seq, fuzzing_frame_seq, dosCheckStartTime, "Error")
+						self.write_binary_file(mov_msg_list, fuzz_msg, dosCheckStartTime, "Error")
 						break
 
-					interConnectionEndTime = time.time()
-					endTime = time.time()
+					timestamp = 0.0
 
-					elapsedMiliSec = endTime - startTime
-					print("[+] Connection Number : %d, timeElapse %f" % (index, elapsedMiliSec))
+					if ans is not None:
+						timestamp = ans[0][1].time - ans[0][0].sent_time
+						# print("    [ ] ElapsedTime %f" % timestamp)
 
-					if int(interConnectionEndTime - interConnectionStartTime) > self.dosCheckWaitTime:
+					# interConnectionEndTime = time.time()
+					# endTime = time.time()
+
+					# elapsedMiliSec = endTime - startTime
+					# # print("[+] Connection Number : %d, timeElapse %f" % (index, elapsedMiliSec))
+
+					if timestamp > self.dosCheckWaitTime:
 						dosChecker = True
 						break
 			
 				if dosChecker == True:
-					self.write_binary_file(state_move_frame_seq, fuzzing_frame_seq, dosCheckStartTime, "DoS")
-					print("[+] DoS : yes")
+					self.write_binary_file(mov_msg_list, fuzz_msg, dosCheckStartTime, "DoS")
+					print("    [+] DoS : yes *********************************************")
+					time.time(10)
 				else:
-					print("[+] DoS : no")
+					# print("    [ ] DoS : no")
+					pass
 
-				now = time.localtime()
-				print("[+] Dos on multiple connection checking End %02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec))
+				# now = time.localtime()
+				# print("[+] Dos on multiple connection checking End %02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec))
 
-				print ("[+] Socket reset start")
+				# print ("[+] Socket reset start")
 				for index, sockValue in enumerate(socketArr):
 					try:
 						sockValue.send(h2.H2Frame()/h2.H2GoAwayFrame())
+						# print("    [+] Reset Successful")
 					except Exception as e:
-						print ("[!] Error occured in %d connection" % index)
+						print ("[!] Error occured in connection %d while reset via GOAWAY" % index)
 						continue
 
-				print("[-] packet number : %d End\n" % int(self.txcount))
-				time.sleep(5)
+				# print("[-] packet number : %d End\n" % int(self.txcount))
+				# time.sleep(1)
+				# break
 
 				
 	def makeRandomValue(self):
@@ -894,6 +936,7 @@ user-agent:" + user_agent_var + "\n"
 
 	def recover_sm(self, messages):
 		global frameInfoArr, frameShortInfoArr
+		print("[STEP 3] Reconstructing state machine from json file...")
 
 		# nodes are stored in networkx Digraph. 
 		# transitions are stored in transition_dic
@@ -915,26 +958,31 @@ user-agent:" + user_agent_var + "\n"
 						msg_sent = h2msg_sent
 						break
 				if type(msg_sent) == type(""):
-					print("not maching msg error")
+					print("[Error] recover_sm(): not maching msg error")
 
 				self.transition_dic[t_info["source"]+"->"+t_info["dest"]] = [msg_sent, msg_rtime]
 
+		if len(self.graph.nodes) > 0:
+			print("  [+] Reconstruction done!")
+			print("  [+] No. of states : %d, No. of transitions : %d" % (len(self.graph.nodes), len(self.graph.edges)))
+
 	def get_token_dict(self):
-		with open("./tokenDict/total_tokens.data") as f:
+		with open("./tokenDict/total_tokens.data", "rb") as f:
 			self.token_db = pickle.load(f)
 
 	def start_write_json_logging(self):
 		global jsonFileDescripter
 		self.out_json = './log/'+self.init_time+'_logging.json'
-		state_move_use_buf = ("\"fuzzer_version\" : \"%s\",\n" % self.fuzzer_version)
+		fuzzer_version_buf = ("\"fuzzer_version\" : \"%s\",\n" % self.fuzzer_version)
 		start_date_buf = ("\"starting_time\" : \"%s\",\n" % self.init_time)
 		# target_binary_buf = ("\"target_binary\" : \"%s\",\n" % self.target_binary)
 		state_move_use_buf = ("\"state_move_frame_use\" : \"%s\",\n" % self.state_move_frame_option)
 
 		jsonFileDescripter = open(self.out_json, 'w')
 		jsonFileDescripter.write("{\n")
+		jsonFileDescripter.write(fuzzer_version_buf)
 		jsonFileDescripter.write(start_date_buf)
-		jsonFileDescripter.write(target_binary_buf)
+		# jsonFileDescripter.write(target_binary_buf)
 		jsonFileDescripter.write(state_move_use_buf)
 		jsonFileDescripter.write("\"packet\" : [\n")
 		jsonFileDescripter.flush()
@@ -958,7 +1006,7 @@ def info():
 
 def main():
 	global dst_ip
-	if len(sys.argv) < 3:
+	if len(sys.argv) < 4:
 		info()
 
 	print("[STEP 1] Initializing...")
@@ -981,6 +1029,7 @@ def main():
 
 	print ("- Starting Time : %s" % dt)
 	print ("- Pcap Input : %s" % pcap_path)
+	print ("- Json Input : %s" % json_path)
 
 	### Extract contructed state machine ###
 	http2_basic_messages = util.h2msg_from_pcap(pcap_path)
