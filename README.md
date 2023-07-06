@@ -8,7 +8,9 @@ PRETT/2 is an automated protocol modeler for HTTP/2 servers.
 - sudo apt-get install python3.8 python3.8-dev python3-pip python-tk graphviz libgraphviz-dev libjpeg-dev
 - sudo update-alternatives --install /usr/bin/python3 python /usr/bin/python3.8 1
 ## Install packages via pip3
-### To run prett2.py
+### (Auto install) To run both prett2.py and http2fuzz.py 
+- sudo sh setup.sh
+### (Manual install) To run prett2.py
 - sudo pip3 install scapy 
 - sudo pip3 install transitions
 - sudo pip3 install cython (for numpy) 
@@ -17,7 +19,7 @@ PRETT/2 is an automated protocol modeler for HTTP/2 servers.
 - sudo pip3 install certifi (for matplotlib)
 - sudo pip3 install matplotlib 
 - sudo pip3 install pygraphviz
-### To run http2fuzz.py
+### (Manual install) To run http2fuzz.py
 - sudo pip3 install networkx
 - sudo pip3 install tqdm
 
