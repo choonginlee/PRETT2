@@ -202,9 +202,47 @@ def framestr_to_h2seq(frameStrBuf):
 def h2msg_to_str(h2msg):
     frameStr = ''
     # h2msg.show()
-    for h2frame in h2msg.frames:
-        # h2frame.show()
-        if hasattr(h2frame, 'type'):
-            frameStr += (frameShortInfoArr[h2frame.type] + '-')
-    frameStr = frameStr[:-1]
+    # Case 1: multiple h2 messages
+    if type(h2msg) is type([]):
+        for h2msg_in_list in h2msg:
+            for h2frame in h2msg_in_list.frames:
+                if hasattr(h2frame, 'type'):
+                    frameStr += (frameShortInfoArr[h2frame.type] + '-')
+            frameStr = frameStr[:-1]
+            frameStr += ' | '
+        frameStr = frameStr[:-3]
+    else:
+        for h2frame in h2msg.frames:
+            # h2frame.show()
+            if hasattr(h2frame, 'type'):
+                frameStr += (frameShortInfoArr[h2frame.type] + '-')
+        frameStr = frameStr[:-1]
     return frameStr
+
+def check_h2_response(ans, msg=None):
+    # Check if h2 message received from sr.
+
+    # Detailed information about ans
+    # ans is a list of QueryAnswer tuple
+    # therefore, a Queryanswer is (Query (s), Answer (r))
+    check = False
+    # print(ans)
+    # FUNCTION 1: checking h2 message presence
+    if msg is None:
+        for a in ans:
+            # print("-----")
+            # print(a)
+            # print("-----")
+            r = a[1] # received packet
+            if r.haslayer(h2.H2Seq):
+                check = True
+    # FUNCTION 2 : checking specific message
+    else:           
+        for a in ans:
+            # print("-----")
+            # print(a)
+            # print("-----")
+            r = a[1] # received packet
+            if msg in h2msg_to_str(r):
+                check = True
+    return check

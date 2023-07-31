@@ -2,6 +2,8 @@ from states import *
 import statemachine as stma
 import json
 import util
+import logging
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import *
 from scapy.compat import raw, plain_str, hex_bytes, orb, chb, bytes_encode
 import scapy.supersocket as supersocket
@@ -10,9 +12,9 @@ import time
 import sys
 import ssl
 import socket
-import logging
 import os
 logger = logging.getLogger(__name__)
+import traceback
 
 ssl_ctx = None
 
@@ -20,7 +22,8 @@ def modeller_h2(http2_basic_messages, dst_ip, outdir):
 	global ssl_ctx
 	
 	ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-	ssl_ctx.keylog_filename = "%s/sslkey_scapy.txt" % outdir
+	# ssl_ctx.keylog_filename = "%s/sslkey_scapy.txt" % outdir
+	ssl_ctx.keylog_filename = "./sslkey_scapy.txt"
 
 	# Building the SSL context
 	ssl_ctx.set_ciphers(':'.join([  # List from ANSSI TLS guide v.1.1 p.51
@@ -85,11 +88,12 @@ def modeller_h2(http2_basic_messages, dst_ip, outdir):
 		elapsed_time = time.time() - g_start_time
 		pm.current_level = pm.current_level + 1
 		pm.candidate_state_list.state_list = []  # clear candidate state list
+
+		if len(pm.state_list.get_states_by_level(pm.current_level)) == 0: # Jobs finished
+			break
 		print("  [+] --- Finished level %d | " % (pm.current_level) + "Time elapsed %s ---" % elapsed_time)
 		logger.info("  [+] --- Finished level %d | " % (pm.current_level) + "Time elapsed %s ---" % elapsed_time)
 		
-		if len(pm.state_list.get_states_by_level(pm.current_level)) == 0: # Jobs finished
-			break
 
 		### Graph drawing ###
 		graphname = "%s/diagram/level_" % outdir + str(pm.current_level-1) + ".png"
@@ -108,12 +112,10 @@ def modeller_h2(http2_basic_messages, dst_ip, outdir):
 	sys.exit()
 
 
-def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
-	H2_CLIENT_CONNECTION_PREFACE = hex_bytes('505249202a20485454502f322e300d0a0d0a534d0d0a0d0a')
-	h2msg_rcvd_short = []
-	ssl_bpf = 'tcp and dst port 443'
-	h2msg_rcvd = h2.H2Seq()
-	elapsedTime = 0
+def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
+	
+	h2msg_rcvd = []
+	elapsed_time = 0.0
 
 	########## Settings for HTTP2 secket ##########
 	assert(ssl.HAS_ALPN)
@@ -145,12 +147,9 @@ def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
 	# print("    [+] Testing.... Wait for response.")
 
 	scapy.config.conf.debug_dissector = True
+	ss = supersocket.SSLStreamSocket(ssl_sock, basecls=h2.H2Seq)
 
-	########## Send HTTP2 connection preface ##########
-	ss = supersocket.SSLStreamSocket(ssl_sock, basecls=h2.H2Frame)
-	ss.send(packet.Raw(H2_CLIENT_CONNECTION_PREFACE))
-
-	########## Send HTTP2 messages ##########
+	prefaceFrame = hex_bytes('505249202a20485454502f322e300d0a0d0a534d0d0a0d0a')
 	firstSETTINGS = h2.H2Frame()/h2.H2SettingsFrame()
 	max_frm_sz = (1 << 24) - 1
 	max_hdr_tbl_sz = (1 << 16) - 1
@@ -162,130 +161,68 @@ def send_receive_http2(pm, move_state_h2msgs, h2msg_send, parent_elapedTime):
 		h2.H2Setting(id = h2.H2Setting.SETTINGS_MAX_FRAME_SIZE, value=max_frm_sz),
 	]
 
-	"""
-	if int(parent_elapedTime) > 0:
-		print("    [D] parent elapsedTime is %d" % int(parent_elapedTime))
-		h2Seq_state_move_msg = h2.H2Seq()
-		h2Seq_state_move_msg.frames.extend(move_state_h2msgs)
+	inter = 0.1
+	try:
+		is_quick_goaway = False
 
-		h2seq_target_msg = h2.H2Seq()
-		h2seq_target_msg.frames.extend(h2msg_send)
-		now = time.localtime()
-		print("  [+] Start at %02d:%02d:%02d ..." % (now.tm_hour, now.tm_min, now.tm_sec))
-		h2Seq_state_move_msg.frames.insert(0, firstSETTINGS)
-		ss.send(h2Seq_state_move_msg)
+		### SENDING INITIAL MSG ###
+		# print("SENDING INITIAL MSG")
+		init_msg = h2.H2Seq()
+		init_msg.frames = [prefaceFrame, firstSETTINGS]	
+		ans = None
+		ans, unans = ss.sr(init_msg, inter=inter, verbose=0, multi=True, timeout=0.1)
+		# print("len of ans : %d" % len(ans))
+
+		### SENDING STATE MOVING MSG ###
+		# print("SENDING STATE MOVING MSG")
+		for mov_msg in mov_msg_list:
+			ans = None
+			ans, unans = ss.sr(mov_msg, inter=0.2, verbose=0, multi=True, timeout=0.1)
+			# print("len of ans : %d" % len(ans))
+			if len(ans) > 0 and util.check_h2_response(ans = ans, msg = "GO"):
+				# print("  [D] GOAWAY frame while state moving. Skip...")
+				is_quick_goaway = True
+				break
+
+		if is_quick_goaway is False: # check for goaway in state moving
+			### SENDING TARGET MSG ###
+			# print("SENDING TARGET MSG")
+			ans = None
+			ans, unans = ss.sr(h2msg_sent, inter=0.1, verbose=0, multi=True, timeout=5)
+			# print("len of ans : %d" % len(ans))
+			if len(ans) > 0 and util.check_h2_response(ans = ans, msg = "GO"):
+				# print("  [D] GOAWAY frame received for target msg...")
+				is_quick_goaway = True
+			
 		
-		compare_time = 1
-		time.sleep(compare_time)
-		startTime = time.time()
-		for_compare_parent_time = int(parent_elapedTime) - compare_time
-		ss.send(h2seq_target_msg)
-	
-		while True:
-			try:
-				new_frame = ss.sniff(timeout=600, filter = ssl_bpf, count = 1)
-				endTime = time.time()
-				elapsedTime = endTime - startTime
-				if int(elapsedTime) >= 600:
-					elapsedTime = -2
-					break
+		### PROCESSING RECEIVED MSG ###
+		for a in ans:
+			r = a[1]
+			if r.haslayer(h2.H2Seq):
+				# # IMPORTANT :: Handling multiple SETTINGS frames received
+				# # Empirically, multiple SETTINGS frames are accumulated as states go deep
+				# if new_frame.type == h2.H2SettingsFrame.type_id:
+				# 	if len(h2msg_rcvd.frames) > 1 and h2msg_rcvd.frames[-1].type == h2.H2SettingsFrame.type_id:
+				# 	continue
+				h2msg_rcvd.append(r)
 
-				if (new_frame.type == h2.H2GoAwayFrame.type_id or new_frame.type == h2.H2ResetFrame.type_id) and int(elapsedTime) <= 0:
-					print("Error code : %d" % new_frame.error)
-					# new_frame.show()
-					elapsedTime = 0
-					break
-	
-				elif (new_frame.type == h2.H2GoAwayFrame.type_id or new_frame.type == h2.H2ResetFrame.type_id) and int(elapsedTime) < int(for_compare_parent_time):
-					print("[+] Low TimeOut")
-					print("[+] real elapsed Time %d" % int(elapsedTime))
-					break
+		if ans is not None:
+			elapsed_time = ans[0][1].time - ans[0][0].sent_time
+			# print("    [ ] ElapsedTime %f" % elapsed_time)
 
-				elif (new_frame.type == h2.H2GoAwayFrame.type_id or new_frame.type == h2.H2ResetFrame.type_id) and int(elapsedTime) == int(for_compare_parent_time):
-					print("[+] Same TimeOut")
-					print("[+] real elapsed Time %d" % int(elapsedTime))
-					elapsedTime = -1
-					break
-	
-				elif (new_frame.type == h2.H2GoAwayFrame.type_id or new_frame.type == h2.H2ResetFrame.type_id) and int(elapsedTime) > int(for_compare_parent_time):
-					print("[+] Refresh TimeOut")
-					print("[+] real elapsed Time %d" % int(elapsedTime))
-					break
+	except Exception as e:
+		print("Exception message: {}".format(e))
+		print(traceback.format_exc())
+		sys.exit()
 
-				h2msg_rcvd_short.append(stma.frameInfoArr[new_frame.type])
-				h2msg_rcvd.frames.append(new_frame)
-			except:
-				new_frame = None	
-
-		now = time.localtime()
-		print ("  [+] End at %02d:%02d:%02d ..." % (now.tm_hour, now.tm_min, now.tm_sec))
-
-
-	else:
-		print("    [D] parent elapsedTime is zero")
-	"""
-	h2Seq_state_move_target_msg = h2.H2Seq()
-	h2Seq_state_move_msg = h2.H2Seq()
-	h2Seq_state_move_msg.frames.extend(move_state_h2msgs)
-
-	h2seq_target_msg = h2.H2Seq()
-	h2seq_target_msg.frames.extend(h2msg_send)
-
-	h2Seq_state_move_target_msg.frames.append(firstSETTINGS)
-	h2Seq_state_move_target_msg.frames.append(h2Seq_state_move_msg)
-	h2Seq_state_move_target_msg.frames.append(h2seq_target_msg)
-	startTime = time.time()
-	now = time.localtime()
-	# print("    [D] Start at %02d:%02d:%02d ..." % (now.tm_hour, now.tm_min, now.tm_sec))
-	# sys.exit()
-	ss.send(h2Seq_state_move_target_msg)
-	# print("    [D] Reaching target state and testing ...")
-	 
-	while True:
-		try:
-			sniff_frame = None
-			sniff_frame = ss.sniff(timeout=600, filter=ssl_bpf, count=1)
-			new_frame = sniff_frame[0]
-			# new_frame.show()
-			endTime = time.time()
-			elapsedTime = endTime - startTime
-			elapsedTime = int(elapsedTime)
-			if elapsedTime > 0:
-				elapsedTime = 5
-			if (pm.timeout - elapsedTime) == 1:
-				# print("timeout set to %d" % pm.timeout)
-				elapsedTime = pm.timeout
-			# h2msg_rcvd_short.append(util.frameInfoArr[new_frame.type])
-
-			# IMPORTANT :: Handling multiple SETTINGS frames received
-			# Empirically, multiple SETTINGS frames are accumulated as states go deep
-			if new_frame.type == h2.H2SettingsFrame.type_id:
-				if len(h2msg_rcvd.frames) > 1 and h2msg_rcvd.frames[-1].type == h2.H2SettingsFrame.type_id:
-					continue
-			h2msg_rcvd.frames.append(new_frame)
-
-			if int(elapsedTime) >= 600:
-				elapsedTime = -2
-				break
-
-			if new_frame.type == h2.H2GoAwayFrame.type_id or new_frame.type == h2.H2ResetFrame.type_id:
-				# print("    [D] Received GoAway / Reset. (EC : %d)" % new_frame.error)
-				break
-
-		except Exception as e: 
-			print(str(e))
-			new_frame = None
-
-	now = time.localtime()
-	# print ("    [D] End at %02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec))
-
-	ss.send(h2.H2Frame()/h2.H2GoAwayFrame())
+	if is_quick_goaway is False:
+		ss.send(h2.H2Frame()/h2.H2GoAwayFrame())
 
 	# print("  == send_receive_http2() summary ==")
 	# print("  == (Moving frame) - Test Frame / Receive Frame")
-	print("    => (%s) - %s / %s " % (
-	util.h2msg_to_str(move_state_h2msgs), util.h2msg_to_str(h2msg_send), util.h2msg_to_str(h2msg_rcvd)))
-	print("    => (%d) sec" % elapsedTime)
+	# print("    [I] Moving => Target => Received (time)")
+	print("    [R] (%s) => %s => %s (%d sec.)" % (
+	util.h2msg_to_str(mov_msg_list), util.h2msg_to_str(h2msg_sent), util.h2msg_to_str(h2msg_rcvd), elapsed_time))
 	# print("  ==================================")
 
-	return h2msg_rcvd, elapsedTime
+	return h2msg_rcvd, elapsed_time

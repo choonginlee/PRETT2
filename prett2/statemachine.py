@@ -54,23 +54,22 @@ def generate_sm():
 
 def get_move_state_h2msgs(pm, target_state):
     # Get state moving message to reach current state
-    move_state_h2msgs = h2.H2Seq()
+    # Return list of H2 messages
+    move_state_h2msgs = []
     move_state_num = 0
     while True:
         parent_state = target_state.parent_state
-        if parent_state is not None:  # non-last node
+        if parent_state is not None:  # non-root node
             parent_h2msg = copy.deepcopy(target_state.h2msg_sent)
             parent_h2msg.frames.reverse()
-            move_state_h2msgs.frames.extend(parent_h2msg.frames)
+            move_state_h2msgs.append(parent_h2msg)
             move_state_num = move_state_num + 1
             target_state = parent_state
             continue
-        elif parent_state is None and move_state_num == 0:  # last node
-            break
         else:  # root node
             break
 
-    move_state_h2msgs.frames.reverse()
+    move_state_h2msgs.reverse()
     return move_state_h2msgs
 
 
@@ -210,27 +209,27 @@ def expand_sm(pm, sm, leaf_states):
         except Exception as e:
             print(e)
             print(leaf_state)
-        move_state_h2msgs = get_move_state_h2msgs(pm, leaf_state)
+        move_state_h2msgs_list = get_move_state_h2msgs(pm, leaf_state)
         # print("[expand_sm] h2msg of get_move_state_h2msgs ---")
-        # util.h2msg_to_str(move_state_h2msgs)
+        # util.h2msg_to_str(move_state_h2msgs_list)
         message_num = 1
         pm.current_state = leaf_state
         parent_elapsed_time = leaf_state.elapsedTime
         for h2msg_sent in pm.testmsgs:  # test messages : SE-WI, DA-HE-DA .... (from pcap)
             print("    [lv.%d-EXPANSION-STATE-\'%s\'] move Frame: %s, send Frame: %s (%d/%d msgs)" % (pm.current_level,
-                leaf_state.name, util.h2msg_to_str(move_state_h2msgs), util.h2msg_to_str(h2msg_sent), message_num,
+                leaf_state.name, util.h2msg_to_str(move_state_h2msgs_list), util.h2msg_to_str(h2msg_sent), message_num,
                 len(pm.testmsgs)))
             logger.info("    [lv.%d-EXPANSION-STATE-\'%s\'] move Frame: %s, send Frame: %s (%d/%d msgs)" % (pm.current_level,
-                leaf_state.name, util.h2msg_to_str(move_state_h2msgs), util.h2msg_to_str(h2msg_sent), message_num,
+                leaf_state.name, util.h2msg_to_str(move_state_h2msgs_list), util.h2msg_to_str(h2msg_sent), message_num,
                 len(pm.testmsgs)))
             # print ("  [ ] It may take time for receiving Go Away frame..")
-            h2msg_rcvd, elapsedTime = modeller_h2.send_receive_http2(pm, move_state_h2msgs, h2msg_sent,
+            h2msg_rcvd, elapsedTime = modeller_h2.send_receive_http2(pm, move_state_h2msgs_list, h2msg_sent,
                                                                      parent_elapsed_time)
             update_candidates(pm, sm, h2msg_sent, h2msg_rcvd, elapsedTime)
             message_num += 1
             h2msg_sent_str = util.h2msg_to_str(h2msg_sent)
             h2msg_rcvd_str = util.h2msg_to_str(h2msg_rcvd)
-            sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' / ' + str(int(elapsedTime))
+            sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' => ' + str(int(elapsedTime))
         leafstate_num += 1
         pm.current_state.child_sr_dict = sr_dict
 
@@ -249,20 +248,20 @@ def minimize_sm(pm, sm):
         # cand_sr_dict: messages from cand_s to and its child node (Do the same test as parent).
         print('  [lv.%d-MINIMIZATION-STATE %s] Retrieving its SR dict' % (pm.current_level, cand_s.name))
         cand_sr_dict = OrderedDict()
-        move_state_h2msgs = get_move_state_h2msgs(pm, cand_s)
-        move_state_h2msgs_str = util.h2msg_to_str(move_state_h2msgs)
+        move_state_h2msgs_list = get_move_state_h2msgs(pm, cand_s)
+        move_state_h2msgs_str = util.h2msg_to_str(move_state_h2msgs_list)
 
         for h2msg_sent in pm.testmsgs:
-            h2msg_rcvd, elapsedTime = modeller_h2.send_receive_http2(pm, move_state_h2msgs, h2msg_sent,
+            h2msg_rcvd, elapsedTime = modeller_h2.send_receive_http2(pm, move_state_h2msgs_list, h2msg_sent,
                                                                      cand_s.elapsedTime)
             h2msg_sent_str = util.h2msg_to_str(h2msg_sent)
             h2msg_rcvd_str = util.h2msg_to_str(h2msg_rcvd)
-            cand_sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' / ' + str(int(elapsedTime))
+            cand_sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' => ' + str(int(elapsedTime))
 
         cand_s.child_sr_dict = cand_sr_dict
         h2msg_sent_str = util.h2msg_to_str(cand_s.h2msg_sent)
         h2msg_rcvd_str = util.h2msg_to_str(cand_s.h2msg_rcvd)
-        sr_msg = "%s / %s / %s" % (h2msg_sent_str, h2msg_rcvd_str, str(int(cand_s.elapsedTime)))
+        sr_msg = "%s => %s (%s)" % (h2msg_sent_str, h2msg_rcvd_str, str(int(cand_s.elapsedTime)))
 
         ######## Check duplication of cand_s in 3 ways ########
         md = MergeData()
