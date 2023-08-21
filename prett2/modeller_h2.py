@@ -164,9 +164,7 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 	inter = 0.1
 	try:
 		is_quick_goaway = False
-
 		### SENDING INITIAL MSG ###
-		# print("SENDING INITIAL MSG")
 		init_msg = h2.H2Seq()
 		init_msg.frames = [prefaceFrame, firstSETTINGS]	
 		ans = None
@@ -174,7 +172,6 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 		# print("len of ans : %d" % len(ans))
 
 		### SENDING STATE MOVING MSG ###
-		# print("SENDING STATE MOVING MSG")
 		for mov_msg in mov_msg_list:
 			ans = None
 			ans, unans = ss.sr(mov_msg, inter=0.2, verbose=0, multi=True, timeout=0.1)
@@ -184,11 +181,10 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 				is_quick_goaway = True
 				break
 
+		### SENDING TARGET MSG ###
 		if is_quick_goaway is False: # check for goaway in state moving
-			### SENDING TARGET MSG ###
-			# print("SENDING TARGET MSG")
 			ans = None
-			ans, unans = ss.sr(h2msg_sent, inter=0.1, verbose=0, multi=True, timeout=5)
+			ans, unans = ss.sr(h2msg_sent, inter=0.1, verbose=0, multi=True, timeout=5, retry=3)
 			# print("len of ans : %d" % len(ans))
 			if len(ans) > 0 and util.check_h2_response(ans = ans, msg = "GO"):
 				# print("  [D] GOAWAY frame received for target msg...")
@@ -197,6 +193,14 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 		
 		### PROCESSING RECEIVED MSG ###
 		for a in ans:
+			if len(ans) > 1:
+				# a[0].show()
+				a[1].show()
+			# a : each answered packet (a[0] : msg sent, a[1] : msg recvd)
+			# print("sent:")
+			# a[0].show()
+			# print("recvd:")
+			# a[1].show()
 			r = a[1]
 			if r.haslayer(h2.H2Seq):
 				# # IMPORTANT :: Handling multiple SETTINGS frames received
@@ -205,6 +209,10 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 				# 	if len(h2msg_rcvd.frames) > 1 and h2msg_rcvd.frames[-1].type == h2.H2SettingsFrame.type_id:
 				# 	continue
 				h2msg_rcvd.append(r)
+
+		if len(ans) == 0:
+			print(type(ans))
+			print(ans)
 
 		if ans is not None:
 			elapsed_time = ans[0][1].time - ans[0][0].sent_time

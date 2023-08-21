@@ -17,13 +17,13 @@ def init():
 	os.system("sudo mkdir %s" % outdir)
 	os.system("sudo mkdir %s/diagram" % outdir)
 
-	print("[INFO] If you want to capture packet via wireshark, type interface (ex. ens38).")
-	print("[INFO] You can skip capturing by typing \'n\' or \'N\'")
-	ens = input("[Q] Interface? : ")
-	if ens == 'n' or ens == 'N':
-		pass
-	else:
-		output = subprocess.Popen("sudo wireshark -k -i %s > /dev/null" % ens, shell=True)
+	# print("[INFO] If you want to capture packet via wireshark, type interface (ex. ens38).")
+	# print("[INFO] You can skip capturing by typing \'n\' or \'N\'")
+	# ens = input("[Q] Interface? : ")
+	# if ens == 'n' or ens == 'N':
+	# 	pass
+	# else:
+	# 	output = subprocess.Popen("sudo wireshark -k -i %s > /dev/null" % ens, shell=True)
 
 	# Setting for logging
 	logging.basicConfig(level=logging.DEBUG, filename="%s/ptmsg_log"%outdir, filemode="a+", format="%(asctime)-15s %(levelname)-8s %(message)s")
@@ -31,7 +31,7 @@ def init():
 	sys.stdout = util.Tee(sys.stdout, f)
 
 	dst_ip = sys.argv[1]
-	pcapfile = '/home/oren/PRETT2/prett2/pcapFile/middle_client/ap_l/ap_l_ff_m.pcapng'
+	pcapfile = sys.argv[2]
 	os.system("sudo cp %s %s/" % (pcapfile, outdir))
 
 	print("  [+] Initializing done!\n    => pcap : %s, dst_ip : %s" % (pcapfile, dst_ip))
@@ -39,12 +39,12 @@ def init():
 
 def info():
 	print("Run this script with target IP address (python3).")
-	print("sudo python3 %s [target IP]" % sys.argv[0])
+	print("sudo python3 %s [target IP] [pcap_path]" % sys.argv[0])
 	print("Target IP is IP address or URL without https://")
 	sys.exit()
 
 if __name__ == "__main__":
-	if len(sys.argv) != 2:
+	if len(sys.argv) != 3:
 		info()
 
 	#### general setting ###

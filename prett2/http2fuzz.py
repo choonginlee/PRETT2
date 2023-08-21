@@ -21,7 +21,6 @@ import util
 import networkx as nx
 from tqdm import tqdm
 
-dst_ip = '127.0.0.1'
 jsonFileDescripter = None
 
 def signal_handler(sig, frame):
@@ -51,12 +50,13 @@ class Tee(object):
 			f.flush()
 
 class Http2fuzz:
-	def __init__(self, current_state = "init", init_time = None, pcap = None, sm_json = None):
+	def __init__(self, current_state = "init", dst_ip = 'localhost', init_time = None, pcap = None, sm_json = None):
 		### General ###
 		self.fuzzer_version = 'fuzz_prett2_v1'
 		self.init_time = init_time
 		self.out_json = ''
 		self.state_move_frame_option = "y"
+		self.dst_ip = dst_ip
 
 		### State machine reconstruction ###
 		self.pcap = pcap
@@ -242,8 +242,7 @@ class Http2fuzz:
 	
 # 		return h2seq
 
-	def open_socket(self):
-		global dst_ip, frameInfoArr,frameShortInfoArr
+	def open_socket(self, dst_ip):
 		H2_CLIENT_CONNECTION_PREFACE = hex_bytes('505249202a20485454502f322e300d0a0d0a534d0d0a0d0a')
 		
 		assert(ssl.HAS_ALPN)
@@ -256,7 +255,6 @@ class Http2fuzz:
 			s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 		ssl_ip_port = l[0][4]
 	
-		# something wrong when nginx pruning 25
 		ssl_sock = self.ssl_ctx.wrap_socket(s)
 		ssl_sock.connect(ssl_ip_port)
 		assert('h2' == ssl_sock.selected_alpn_protocol())
@@ -456,7 +454,6 @@ class Http2fuzz:
 
 
 	def make_fuzzing_packet(self, strategy):
-		global dst_ip
 		frameShortInfoArr_forFuzz = ['DA','HE','PR','SE','PU','PI','WI','CO','RA']
 		# 0,1,2,3,4,5,6,7 -> frameShortInfoArr each frame sent
 
@@ -722,25 +719,9 @@ user-agent:" + user_agent_var + "\n"
 	# 		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9]
 	# 		self.dosChecksocketOpenNum = 300
 
-	def check_h2_response(self, ans, msg=None):
-		# Check if h2 message received from sr.
-		check = False
-		# FUNCTION 1: checking h2 message presence
-		if msg is None: 	
-			for s, r in ans:
-				if r[1].haslayer(h2.H2Seq):
-					check = True
-		# FUNCTION 2 : checking specific message
-		else: 				
-			for s, r in ans:
-				if msg in util.h2msg_to_str(r):
-					check = True
-		return check
+
 
 	def fuzzing_run(self):
-		global dst_ip, frameInfoArr,frameShortInfoArr
-		
-
 		self.frame_number_dict = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 		self.ssl_setting()
 		self.start_write_json_logging()
@@ -818,28 +799,36 @@ user-agent:" + user_agent_var + "\n"
 
 					try:
 						sockBuf = None
-						sockBuf = self.open_socket()
+						sockBuf = self.open_socket(dst_ip=self.dst_ip)
 						socketArr.append(sockBuf)
 
+						print("SENDING INITIAL MSG")
 						### SENDING INITIAL MSG ###
 						ans = None
 						ans, unans = sockBuf.sr(init_msg, inter=inter, verbose=0)
+						print("len of ans : %d" % len(ans))
 
+
+						print("SENDING STATE MOVING MSG")
 						### SENDING STATE MOVING MSG ###
 						for mov_msg in mov_msg_list:
 							ans = None
 							ans, unans = sockBuf.sr(mov_msg, inter=inter, verbose=0)
+						print("len of ans : %d" % len(ans))
 						if self.check_h2_response(ans, "GO"):
 							print("  [D] GOAWAY frame while state moving. Skip...")
 							break
 
+						print("SENDING FUZZING MSG")
 						### SENDING FUZZING MSG ###
 						if util.h2msg_to_str(t_msg) == "GO":
+							print(" GOAWAY msg sent.")
 							# When sending GOAWAY, we do not expect any response.
 							sockBuf.send(fuzz_msg)					
 						else:
 							ans = None
 							ans, unans = sockBuf.sr(fuzz_msg, inter=inter, timeout=self.dosCheckWaitTime, verbose=0)
+							print("len of ans : %d" % len(ans))
 
 					except Exception as e:
 						now = time.localtime()
@@ -1005,7 +994,6 @@ def info():
 	sys.exit()
 
 def main():
-	global dst_ip
 	if len(sys.argv) < 4:
 		info()
 
@@ -1022,7 +1010,7 @@ def main():
 	# original = sys.stdout
 	# sys.stdout = Tee(sys.stdout, f)
 	signal.signal(signal.SIGINT, signal_handler)
-	http2fuzz_obj = Http2fuzz(init_time=dt,
+	http2fuzz_obj = Http2fuzz(dst_ip = dst_ip, init_time=dt,
 		pcap = pcap_path,
 		sm_json = json_path,
 		)
