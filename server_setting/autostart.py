@@ -40,10 +40,16 @@ if __name__ == "__main__":
 		res = p.findall(output)[0]
 		server = res[8:]
 	elif server == "h2o":
-		print("[***INFO***] H2O runs as an worker process. Please check the running status in this shell.")
-		print("[***INFO***] To kill the server, just press Ctrl + C.")
-		os.system("sudo /usr/local/bin/h2o -v")
-		output = subprocess.check_output("sudo /usr/local/bin/h2o -c /etc/h2oconf.conf", shell=True)
+		# print("[***INFO***] H2O runs as an worker process. Please check the running status in this shell.")
+		# print("[***INFO***] To kill the server, just press Ctrl + C.")
+		os.system("sudo mkdir /opt/logs")
+		# os.system("sudo /usr/local/bin/h2o -v")
+		output = subprocess.check_output("sudo /usr/local/bin/h2o -m daemon -c /etc/h2oconf.conf", shell=True)
+		output = subprocess.check_output("sudo curl -k -I https://localhost", shell=True)
+		output = output.decode()
+		p = re.compile('server: h2o/\d+\.\d+\.\d+')
+		res = p.findall(output)[0]
+		server = res[8:]
 
 	if output.find("HTTP/2") == 0:
 		print("[+] Server %s successfully started." % server)

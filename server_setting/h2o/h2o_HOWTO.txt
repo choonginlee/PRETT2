@@ -17,7 +17,8 @@ $ sudo make install
 
 // SERVER SETTING
 ** make /etc/h2oconf.conf **
-http2-idle-timeout: 10
+http2-idle-timeout: 5
+error-log: /opt/logs/h2o-error.log
 hosts:
   "localhost":
     listen:
@@ -33,6 +34,5 @@ hosts:
         expires: 1 day
 
 // START & STOP
-$ sudo /usr/local/bin/h2o -c /etc/h2oconf.conf
+$ sudo /usr/local/bin/h2o -m daemon -c /etc/h2oconf.conf
 $ sudo curl -k -I https://localhost
-- Just ctrl + c for stop
