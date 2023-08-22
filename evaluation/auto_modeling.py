@@ -68,7 +68,8 @@ def install_target_server(target_ip, ts, ts_v):
 		print("  >[+] Success.")
 	else:
 		lines = stderr.readlines() 
-		print("  >[-] Error occured!")
+		print("  >[-] -----------------------------------")
+		print("  >[-] [DEBUG] Output from remote server")
 		print(''.join(lines))
 		print('  >[-] -----------------------------------')
 	cli.close()
@@ -80,15 +81,19 @@ def test_target_server(target_ip, traffic):
 		stdout=subprocess.PIPE, stderr = subprocess.PIPE)
 
 	while True:
-		output = proc.stdout.readline()
-		output2 = proc.stderr.readline()
+		output = str(proc.stdout.readline(), 'utf-8')
 		if output == '' and proc.poll() is not None:
 			break
-		if output2 == '' and proc.poll() is not None:
-			break
-		if output or output2:
+		if output != '':
 			print("\t", output.strip())
-			print("\t[E]", output2.strip())
+
+	while True:
+		output = str(proc.stderr.readline(), 'utf-8')
+		if output == '' and proc.poll() is not None:
+			break
+		if output != '':
+			print("\t[E]", output.strip())
+
 	rc = proc.poll()
 	return rc
 

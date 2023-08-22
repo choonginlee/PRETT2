@@ -10,10 +10,13 @@ from datetime import datetime
 
 def init():
 	print("\n[STEP 1] Initializing...")
+	dst_ip = sys.argv[1]
+	pcapfile = sys.argv[2]
+	pcap_name = pcapfile.split("/")[-1].replace(".pcapng", "")
 
 	os.system("sudo rm -r __pycache__")
 	dt = datetime.now().strftime("%Y%m%d-%H%M%S")
-	outdir = "output_%s" % dt
+	outdir = "output_%s_%s" % (pcap_name, dt)
 	os.system("sudo mkdir %s" % outdir)
 	os.system("sudo mkdir %s/diagram" % outdir)
 
@@ -30,8 +33,6 @@ def init():
 	f = open('%s/http2_PRE_logging.txt' % outdir, 'w')
 	sys.stdout = util.Tee(sys.stdout, f)
 
-	dst_ip = sys.argv[1]
-	pcapfile = sys.argv[2]
 	os.system("sudo cp %s %s/" % (pcapfile, outdir))
 
 	print("  [+] Initializing done!\n    => pcap : %s, dst_ip : %s" % (pcapfile, dst_ip))

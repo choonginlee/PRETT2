@@ -192,15 +192,11 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 			
 		
 		### PROCESSING RECEIVED MSG ###
-		for a in ans:
-			if len(ans) > 1:
+		for a in ans: # a : each answered packet (a[0] : msg sent, a[1] : msg recvd)
+			# if len(ans) > 1:
 				# a[0].show()
-				a[1].show()
-			# a : each answered packet (a[0] : msg sent, a[1] : msg recvd)
-			# print("sent:")
-			# a[0].show()
-			# print("recvd:")
-			# a[1].show()
+				# a[1].show()
+			
 			r = a[1]
 			if r.haslayer(h2.H2Seq):
 				# # IMPORTANT :: Handling multiple SETTINGS frames received
@@ -229,7 +225,7 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 	# print("  == send_receive_http2() summary ==")
 	# print("  == (Moving frame) - Test Frame / Receive Frame")
 	# print("    [I] Moving => Target => Received (time)")
-	print("    [R] (%s) => %s => %s (%d sec.)" % (
+	print("\t\t[R] (%s) => %s => %s (%d sec.)" % (
 	util.h2msg_to_str(mov_msg_list), util.h2msg_to_str(h2msg_sent), util.h2msg_to_str(h2msg_rcvd), elapsed_time))
 	# print("  ==================================")
 
