@@ -46,5 +46,5 @@ PRETT/2 is an automated protocol modeler for HTTP/2 servers.
 ### auto_modeling.py > sudo: no tty present and no askpass program specified
 - Edit counterpart's (server side) username privilege  via visudo 
 - $sudo visudo
-- ex) at the last line,
+- ex) at the last line (oren is username),
 - + oren    ALL=(ALL) NOPASSWD: ALL
