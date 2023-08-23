@@ -36,3 +36,15 @@ PRETT/2 is an automated protocol modeler for HTTP/2 servers.
 - sudo apt-get install graphviz libgraphviz-dev libjpeg-dev
 ### Install packages via pip2
 - sudo pip2 install scapy transitions matplotlib pygraphviz sslkeylog
+
+# Troubleshoot
+### setup.sh > ModuleNotFoundError: No module named *pip._internal*
+- python3 -m pip install --user --upgrade pip
+### auto_modeling.py > cannot access to remote server?
+- At the counterpart (server side), run
+- $sudo apt-get install openssl-server
+### auto_modeling.py > sudo: no tty present and no askpass program specified
+- Edit counterpart's (server side) username privilege  via visudo 
+- $sudo visudo
+- ex) at the last line (oren is username),
+- + oren    ALL=(ALL) NOPASSWD: ALL
