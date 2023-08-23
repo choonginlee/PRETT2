@@ -9,6 +9,7 @@ from scapy.utils import rdpcap
 frameInfoArr = ['DATA', 'HEADERS', 'PRIORITY', 'RST_STREAM', 'SETTINGS', 'PUSHPROMISE', 'PING', 'GO_AWAY',
                 'WINDOW_UPDATE', 'CONTINUATION', 'RAW']
 frameShortInfoArr = ['DA', 'HE', 'PR', 'RS', 'SE', 'PU', 'PI', 'GO', 'WI', 'CO', 'RA']
+TIMEOUT = 5
 
 
 ############# GENERAL #############
@@ -34,6 +35,10 @@ def compare_ordered_dict(dict1, dict2):
     for i, j in zip(dict1.items(), dict2.items()):
         if cmp(i, j) != 0:
             return False
+    print("compare_ordered_dict(): Two dict is same")
+    print(dict1)
+    print("---")
+    print(dict2)
     return True
 
 

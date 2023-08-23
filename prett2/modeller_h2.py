@@ -163,7 +163,8 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 
 	inter = 0.1
 	try:
-		is_quick_goaway = False
+		is_already_closed = False
+
 		### SENDING INITIAL MSG ###
 		init_msg = h2.H2Seq()
 		init_msg.frames = [prefaceFrame, firstSETTINGS]	
@@ -178,18 +179,29 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 			# print("len of ans : %d" % len(ans))
 			if len(ans) > 0 and util.check_h2_response(ans = ans, msg = "GO"):
 				# print("  [D] GOAWAY frame while state moving. Skip...")
-				is_quick_goaway = True
-				break
+				is_already_closed = True
+				return None, None # This should not happen
+				
 
 		### SENDING TARGET MSG ###
-		if is_quick_goaway is False: # check for goaway in state moving
+		if is_already_closed is False: # check for goaway in state moving
 			ans = None
-			ans, unans = ss.sr(h2msg_sent, inter=0.1, verbose=0, multi=True, timeout=5, retry=3)
+			ans, unans = ss.sr(h2msg_sent, inter=0.1, verbose=0, multi=True, timeout=10, retry=3)
 			# print("len of ans : %d" % len(ans))
+			# There are two cases of response
+			# Case 1. Connection timeout from server in pre-configured time
+			# - In this case, server send us GOAWAY frame within timeout to close the connection
+			# Case 2. Connection waiting (w/o GOAWAY frame)
+			# - In this case, scapy gives up waiting for server (for time of sr() timeout).
+			# - The server does not want to 
+
+			# Check if server closed the connection
 			if len(ans) > 0 and util.check_h2_response(ans = ans, msg = "GO"):
-				# print("  [D] GOAWAY frame received for target msg...")
-				is_quick_goaway = True
-			
+				is_already_closed = True
+
+		if is_already_closed is False:
+			ss.send(h2.H2Frame()/h2.H2GoAwayFrame())
+
 		
 		### PROCESSING RECEIVED MSG ###
 		for a in ans: # a : each answered packet (a[0] : msg sent, a[1] : msg recvd)
@@ -206,21 +218,20 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 				# 	continue
 				h2msg_rcvd.append(r)
 
-		if len(ans) == 0:
+		if len(ans) == 0: # This should not happen
 			print(type(ans))
 			print(ans)
 
 		if ans is not None:
-			elapsed_time = ans[0][1].time - ans[0][0].sent_time
-			# print("    [ ] ElapsedTime %f" % elapsed_time)
+			elapsed_time = ans[-1][1].time - ans[-1][0].sent_time
+			# Tune the elapsed time (sometimes it takes 1 more second)
+			if abs(int(elapsed_time) - util.TIMEOUT) <= 1:
+				elapsed_time = util.TIMEOUT
 
 	except Exception as e:
 		print("Exception message: {}".format(e))
 		print(traceback.format_exc())
 		sys.exit()
-
-	if is_quick_goaway is False:
-		ss.send(h2.H2Frame()/h2.H2GoAwayFrame())
 
 	# print("  == send_receive_http2() summary ==")
 	# print("  == (Moving frame) - Test Frame / Receive Frame")

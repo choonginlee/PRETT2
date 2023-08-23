@@ -61,7 +61,7 @@ def get_move_state_h2msgs(pm, target_state):
         parent_state = target_state.parent_state
         if parent_state is not None:  # non-root node
             parent_h2msg = copy.deepcopy(target_state.h2msg_sent)
-            parent_h2msg.frames.reverse()
+            # parent_h2msg.frames.reverse()
             move_state_h2msgs.append(parent_h2msg)
             move_state_num = move_state_num + 1
             target_state = parent_state
@@ -229,7 +229,7 @@ def expand_sm(pm, sm, leaf_states):
             message_num += 1
             h2msg_sent_str = util.h2msg_to_str(h2msg_sent)
             h2msg_rcvd_str = util.h2msg_to_str(h2msg_rcvd)
-            sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' => ' + str(int(elapsedTime))
+            sr_dict[h2msg_sent_str] = h2msg_rcvd_str + " (%s)" % str(int(elapsedTime))
         leafstate_num += 1
         pm.current_state.child_sr_dict = sr_dict
 
@@ -244,50 +244,55 @@ def minimize_sm(pm, sm):
 
     print("  [INFO] Test %d candidate states in level %d" % (len(cand_s_list), pm.current_level))
     for cand_s in cand_s_list:
-        ######## Retrieve cand_s SR info ########
-        # cand_sr_dict: messages from cand_s to and its child node (Do the same test as parent).
-        print('  [lv.%d-MINIMIZATION-STATE %s] Retrieving its SR dict' % (pm.current_level, cand_s.name))
-        cand_sr_dict = OrderedDict()
-        move_state_h2msgs_list = get_move_state_h2msgs(pm, cand_s)
-        move_state_h2msgs_str = util.h2msg_to_str(move_state_h2msgs_list)
-
-        for h2msg_sent in pm.testmsgs:
-            h2msg_rcvd, elapsedTime = modeller_h2.send_receive_http2(pm, move_state_h2msgs_list, h2msg_sent,
-                                                                     cand_s.elapsedTime)
-            h2msg_sent_str = util.h2msg_to_str(h2msg_sent)
-            h2msg_rcvd_str = util.h2msg_to_str(h2msg_rcvd)
-            cand_sr_dict[h2msg_sent_str] = h2msg_rcvd_str + ' => ' + str(int(elapsedTime))
-
-        cand_s.child_sr_dict = cand_sr_dict
+        md = MergeData()
         h2msg_sent_str = util.h2msg_to_str(cand_s.h2msg_sent)
         h2msg_rcvd_str = util.h2msg_to_str(cand_s.h2msg_rcvd)
         sr_msg = "%s => %s (%s)" % (h2msg_sent_str, h2msg_rcvd_str, str(int(cand_s.elapsedTime)))
-
-        ######## Check duplication of cand_s in 3 ways ########
-        md = MergeData()
         md.t_label = sr_msg
-        if check_dupstate(pm, md, cand_s, 'p'):
-            print("  [lv.%d-MINIMIZATION-STATE %s] Same as parent state %s. Merge with its parent" % (pm.current_level, 
-                cand_s.name, md.dst_s.name))
-            logger.debug(
-                "  [lv.%d-MINIMIZATION-STATE %s] Same as parent state %s. Merge with its parent" % (pm.current_level,
+
+        ######## Filter out quick-disconnected (finishing) state #######
+        if int(cand_s.elapsedTime) == 0 and h2msg_rcvd_str.find("GO") >= 0:
+            pass
+
+        ######## Retrieve cand_s SR info ########
+        else: # cand_sr_dict: messages from cand_s to and its child node (Do the same test as parent).
+            print('  [lv.%d-MINIMIZATION-STATE %s] Retrieving its SR dict' % (pm.current_level, cand_s.name))
+            cand_sr_dict = OrderedDict()
+            move_state_h2msgs_list = get_move_state_h2msgs(pm, cand_s)
+            move_state_h2msgs_str = util.h2msg_to_str(move_state_h2msgs_list)
+
+            for h2msg_sent in pm.testmsgs:
+                h2msg_rcvd, elapsedTime = modeller_h2.send_receive_http2(pm, move_state_h2msgs_list, h2msg_sent,
+                                                                         cand_s.elapsedTime)
+                h2msg_sent_str = util.h2msg_to_str(h2msg_sent)
+                h2msg_rcvd_str = util.h2msg_to_str(h2msg_rcvd)
+                cand_sr_dict[h2msg_sent_str] = h2msg_rcvd_str + " (%s)" % str(int(elapsedTime))
+
+            cand_s.child_sr_dict = cand_sr_dict
+
+            ######## Check duplication of cand_s in 3 ways ########
+            if check_dupstate(pm, md, cand_s, 'p'):
+                print("  [lv.%d-MINIMIZATION-STATE %s] Same as parent state %s. Merge with its parent" % (pm.current_level, 
                     cand_s.name, md.dst_s.name))
-        elif check_dupstate(pm, md, cand_s, 's'):
-            print("  [lv.%d-MINIMIZATION-STATE %s] Same as sibling state %s. Merge with its sibling" % (pm.current_level,
-                cand_s.name, md.dst_s.name))
-            logger.debug(
-                "  [lv.%d-MINIMIZATION-STATE %s] Same as sibling state %s. Merge with its sibling" % (pm.current_level,
+                logger.debug(
+                    "  [lv.%d-MINIMIZATION-STATE %s] Same as parent state %s. Merge with its parent" % (pm.current_level,
+                        cand_s.name, md.dst_s.name))
+            elif check_dupstate(pm, md, cand_s, 's'):
+                print("  [lv.%d-MINIMIZATION-STATE %s] Same as sibling state %s. Merge with its sibling" % (pm.current_level,
                     cand_s.name, md.dst_s.name))
-        elif check_dupstate(pm, md, cand_s, 'r'):
-            print("  [lv.%d-MINIMIZATION-STATE %s] Same as relative state %s. Merge with its relative" % (pm.current_level,
-                cand_s.name, md.dst_s.name))
-            logger.debug(
-                "  [lv.%d-MINIMIZATION-STATE %s] Same as relative state %s. Merge with its relative" % (pm.current_level,
+                logger.debug(
+                    "  [lv.%d-MINIMIZATION-STATE %s] Same as sibling state %s. Merge with its sibling" % (pm.current_level,
+                        cand_s.name, md.dst_s.name))
+            elif check_dupstate(pm, md, cand_s, 'r'):
+                print("  [lv.%d-MINIMIZATION-STATE %s] Same as relative state %s. Merge with its relative" % (pm.current_level,
                     cand_s.name, md.dst_s.name))
-        else:
-            # no dup state found.
-            print("  [lv.%d-MINIMIZATION-STATE %s] -> **** Unique state %s found ****" % (pm.current_level, cand_s.name, cand_s.name))
-            logger.info("  [lv.%d-MINIMIZATION-STATE %s] -> **** Unique state %s found ****" % (pm.current_level, cand_s.name, cand_s.name))
+                logger.debug(
+                    "  [lv.%d-MINIMIZATION-STATE %s] Same as relative state %s. Merge with its relative" % (pm.current_level,
+                        cand_s.name, md.dst_s.name))
+            else:
+                # no dup state found.
+                print("  [lv.%d-MINIMIZATION-STATE %s] -> **** Unique state %s found ****" % (pm.current_level, cand_s.name, cand_s.name))
+                logger.info("  [lv.%d-MINIMIZATION-STATE %s] -> **** Unique state %s found ****" % (pm.current_level, cand_s.name, cand_s.name))
 
         update_sm(pm, sm, cand_s, md)
 
