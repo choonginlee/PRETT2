@@ -3,7 +3,8 @@
 import re
 
 import scapy.contrib.http2 as h2
-import scapy.layers.inet6 as inet6
+from scapy.layers.inet import IP
+# import scapy.layers.inet4 as inet4
 from scapy.utils import rdpcap
 
 frameInfoArr = ['DATA', 'HEADERS', 'PRIORITY', 'RST_STREAM', 'SETTINGS', 'PUSHPROMISE', 'PING', 'GO_AWAY',
@@ -35,10 +36,10 @@ def compare_ordered_dict(dict1, dict2):
     for i, j in zip(dict1.items(), dict2.items()):
         if cmp(i, j) != 0:
             return False
-    print("compare_ordered_dict(): Two dict is same")
-    print(dict1)
-    print("---")
-    print(dict2)
+    # print("compare_ordered_dict(): Two dict is same")
+    # print(dict1)
+    # print("---")
+    # print(dict2)
     return True
 
 
@@ -62,14 +63,24 @@ def ip_checker(string):
 def h2msg_from_pcap(f):
     # Extract all http2 messages from pcapfile and return an array of http2 messages in scapy form
     print("\n[STEP 2] Parsing http2 messages from pcapfile %s ..." % f)
+    # Get ip to gather client message 
+    client_ip = None
+    with open(f, 'rb') as f_pre:
+        pcapng = rdpcap(f_pre)
+        for buf in pcapng:
+            http2raw = buf.load[64:]
+            # Got client's message
+            if http2raw[:24] == b'\x50\x52\x49\x20\x2a\x20\x48\x54\x54\x50\x2f\x32\x2e\x30\x0d\x0a\x0d\x0a\x53\x4d\x0d\x0a\x0d\x0a':
+                client_ip = buf.load[16:20]
+                break
+
     h2msg_arr = []
     with open(f, 'rb') as f:
         pcapng = rdpcap(f)
         frameid = 1
         for buf in pcapng:  # for each http2 message
-            # tmpbuf = h2.H2Seq(buf)
-            # print(type(tmpbuf))
-            # tmpbuf.show()
+            if buf.load[16:20] != client_ip:
+                continue
 
             http2raw = buf.load[64:]
             # handle magic
@@ -85,7 +96,7 @@ def h2msg_from_pcap(f):
     # print("  [DBG] messages (shortened)")
     for h2msg in h2msg_arr:
         h2msg_str = h2msg_to_str(h2msg)
-        print("    - h2msg %d: %s " % (msgid, h2msg_str))
+        print("    - h2msg %d: %s" % (msgid, h2msg_str))
         msgid += 1
 
     # [NOTE] An HTTP2 message is a sequence of frames.
@@ -207,20 +218,21 @@ def framestr_to_h2seq(frameStrBuf):
 def h2msg_to_str(h2msg):
     frameStr = ''
     # h2msg.show()
-    # Case 1: multiple h2 messages
+    # Case 1: h2msg is list of HTTP/2 Frame Sequence in Scapy (multiplexed message sequence)
     if type(h2msg) is type([]):
         for h2msg_in_list in h2msg:
             for h2frame in h2msg_in_list.frames:
-                if hasattr(h2frame, 'type'):
-                    frameStr += (frameShortInfoArr[h2frame.type] + '-')
+                if hasattr(h2frame, 'type') and hasattr(h2frame, 'len'):
+                    frameStr += (frameShortInfoArr[h2frame.type] + '(%x)' % h2frame.len + '-')
             frameStr = frameStr[:-1]
             frameStr += ' | '
         frameStr = frameStr[:-3]
+    # Case 2: h2msg is HTTP/2 Frame Sequence in Scapy
     else:
         for h2frame in h2msg.frames:
             # h2frame.show()
             if hasattr(h2frame, 'type'):
-                frameStr += (frameShortInfoArr[h2frame.type] + '-')
+                frameStr += (frameShortInfoArr[h2frame.type] + '(%x)' % h2frame.len + '-')
         frameStr = frameStr[:-1]
     return frameStr
 

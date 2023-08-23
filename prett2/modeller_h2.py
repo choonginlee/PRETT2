@@ -237,7 +237,7 @@ def send_receive_http2(pm, mov_msg_list, h2msg_sent, parent_elapedTime):
 	# print("  == (Moving frame) - Test Frame / Receive Frame")
 	# print("    [I] Moving => Target => Received (time)")
 	print("\t\t[R] (%s) => %s => %s (%d sec.)" % (
-	util.h2msg_to_str(mov_msg_list), util.h2msg_to_str(h2msg_sent), util.h2msg_to_str(h2msg_rcvd), elapsed_time))
+	util.h2msg_to_str(mov_msg_list).replace("|", "=>"), util.h2msg_to_str(h2msg_sent), util.h2msg_to_str(h2msg_rcvd), elapsed_time))
 	# print("  ==================================")
 
 	return h2msg_rcvd, elapsed_time
