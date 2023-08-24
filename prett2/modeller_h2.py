@@ -86,20 +86,22 @@ def modeller_h2(http2_basic_messages, dst_ip, outdir):
 
 		### Finishing current level ... ###
 		elapsed_time = time.time() - g_start_time
-		pm.current_level = pm.current_level + 1
+		
 		pm.candidate_state_list.state_list = []  # clear candidate state list
 
-		if len(pm.state_list.get_states_by_level(pm.current_level)) == 0: # Jobs finished
-			break
 		print("  [+] --- Finished level %d | " % (pm.current_level) + "Time elapsed %s ---" % elapsed_time)
 		logger.info("  [+] --- Finished level %d | " % (pm.current_level) + "Time elapsed %s ---" % elapsed_time)
 		
+		if len(pm.state_list.get_states_by_level(pm.current_level+1)) == 0: # Jobs finished
+			break
 
 		### Graph drawing ###
-		graphname = "%s/diagram/level_" % outdir + str(pm.current_level-1) + ".png"
+		graphname = "%s/diagram/level_" % outdir + str(pm.current_level) + ".png"
 		sm.get_graph().draw(graphname, prog='dot')
 		with open(graphname.replace(".png", ".json"), "w") as jsonfile:
 			json.dump(sm.markup, jsonfile, indent=2)
+
+		pm.current_level = pm.current_level + 1
 
 	elapsed_time = time.time() - g_start_time
 	print ("[+] All jobs done. Total elapsed time is ", elapsed_time)
