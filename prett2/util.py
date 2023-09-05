@@ -222,17 +222,22 @@ def h2msg_to_str(h2msg):
     if type(h2msg) is type([]):
         for h2msg_in_list in h2msg:
             for h2frame in h2msg_in_list.frames:
+                frame_len = 0xdeadbeef # frame with deadbeef is malformed frame!
+                if h2frame.len is not None: # handle malformed frame
+                    frame_len = h2frame.len
                 if hasattr(h2frame, 'type') and hasattr(h2frame, 'len'):
-                    frameStr += (frameShortInfoArr[h2frame.type] + '(%x)' % h2frame.len + '-')
+                    frameStr += (frameShortInfoArr[h2frame.type] + '(%x)' % frame_len + '-')
             frameStr = frameStr[:-1]
             frameStr += ' | '
         frameStr = frameStr[:-3]
     # Case 2: h2msg is HTTP/2 Frame Sequence in Scapy
     else:
         for h2frame in h2msg.frames:
-            # h2frame.show()
+            frame_len = 0xdeadbeef # frame with deadbeef is malformed frame!
+            if h2frame.len is not None: # handle malformed frame
+                frame_len = h2frame.len
             if hasattr(h2frame, 'type'):
-                frameStr += (frameShortInfoArr[h2frame.type] + '(%x)' % h2frame.len + '-')
+                frameStr += (frameShortInfoArr[h2frame.type] + '(%x)' % frame_len + '-')
         frameStr = frameStr[:-1]
     return frameStr
 

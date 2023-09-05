@@ -25,7 +25,7 @@ jsonFileDescripter = None
 
 def signal_handler(sig, frame):
 	global jsonFileDescripter
-	print('You pressed Ctrl+C!')
+	print('[+] Ctrl+C signal detected.')
 	now = time.localtime()
 	dateStrBuf = "%04d.%02d.%02d %02d:%02d:%02d" % (now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)
 	print ("[+] end_time : %s" % dateStrBuf)
@@ -35,7 +35,7 @@ def signal_handler(sig, frame):
 		jsonFileDescripter.close()
 	except Exception as e:
 		print (e)
-		print('You pressed Ctrl+C too much!')
+		print('[-] multiple times of Ctrl+C!')
 	sys.exit(0)
 
 class Tee(object):
@@ -52,7 +52,7 @@ class Tee(object):
 class Http2fuzz:
 	def __init__(self, current_state = "init", dst_ip = 'localhost', init_time = None, pcap = None, sm_json = None):
 		### General ###
-		self.fuzzer_version = 'fuzz_prett2_v1'
+		self.fuzzer_version = 'ver.2'
 		self.init_time = init_time
 		self.out_json = ''
 		self.state_move_frame_option = "y"
@@ -304,6 +304,8 @@ class Http2fuzz:
 		h2seq = h2.H2Seq()
 	
 		for frameValue in frameStrArr:
+			# For removing frame length (from DA (1e) to DA)
+			frameValue = frameValue.split("(")[0].rstrip(" ")
 
 			if frameValue == 'DA':
 				dataFrameBuf = h2.H2Frame()/h2.H2DataFrame()
@@ -453,6 +455,7 @@ class Http2fuzz:
 		return h2seq
 
 
+	"""
 	def make_fuzzing_packet(self, strategy):
 		frameShortInfoArr_forFuzz = ['DA','HE','PR','SE','PU','PI','WI','CO','RA']
 		# 0,1,2,3,4,5,6,7 -> frameShortInfoArr each frame sent
@@ -491,10 +494,18 @@ class Http2fuzz:
 		# fuzzing_frame_seq.frames.append(h2.H2Frame()/h2.H2PingFrame())
 		# fuzzing_frame_seq.frames.append(h2.H2Frame()/h2.H2PingFrame())
 		return fuzzing_frame_seq
+	"""
 
-	def make_fuzzing_packet2(self, t_msg):
+	def make_fuzzing_message(self, t_msg):
+		"""
+		# @Isa we need to generate test cases here.
+		# Currently I generate a template in the format of frameStr (i.e. HE-DA) 
+		# using t_msg as seed and make_fuzzing_frame_seq() to fill randomized value 
+		# in each frame.
+		# - t_msg is the message we stored in state machine reconstruction
+		"""
 		frameStr = ''
-		for msg in t_msg:
+		for msg in t_msg: # for each frame in t_msg
 			msg_short_str = util.h2msg_to_str(msg)
 			frameStr += msg_short_str+'-'
 		frameStr = frameStr[:-1]
@@ -749,29 +760,14 @@ user-agent:" + user_agent_var + "\n"
 			t_msg_rtime = t_msg_info[1]
 
 			mov_msg_list = self.get_moving_frame(t_key)
-			# if len(mov_msg_list) == 0:
-			# 	continue
-
-			# print("[DEBUG] reaching to transition %s" % t_key)
 
 			self.fuzzing_strategy = [1]
 
 			for strategy in self.fuzzing_strategy:
-				# fuzz_msg = self.make_fuzzing_packet(strategy)
-				fuzz_msg = self.make_fuzzing_packet2(t_msg)
+				# fuzz_msg = self.make_fuzzing_packet(strategy) # prev. version (~2021)
+				fuzz_msg = self.make_fuzzing_message(t_msg)
 				totalelapsedTime = 0
 				timeOutElapsedTime = 0
-
-				# print("[DEBUG] init_msg ----")
-				# init_msg.show()
-				# for msg in mov_msg_list:
-				# 	print("=====================")
-				# 	msg.show()
-				# print("[DEBUG] fuzz_msg ----")
-				# fuzz_msg.show()
-
-				# TODO: if you use in other server binary you should change below variable
-				# self.dosChecksocketOpenNum = 300
 				socketArr = []
 				dosChecker = False
 				errorOutChecker = False
@@ -783,12 +779,10 @@ user-agent:" + user_agent_var + "\n"
 					moving_msg_short += util.h2msg_to_str(mov_msg) + "|"
 				if len(moving_msg_short) > 0 and moving_msg_short[-1] == "|":
 					moving_msg_short = moving_msg_short[:-1]
-				# if(util.h2msg_to_str(t_msg) == "GO"):	
-				# 	continue
-				# print("[+] Dos on multiple connection checking Start %02d.%02d %02d:%02d:%02d" % (now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec))
-				print("  [STATUS] Transition [%d/%d]: I(%s)-M(%s)-T(%s)" % (t_index, len(self.transition_dic), util.h2msg_to_str(init_msg), moving_msg_short, t_key))
+				print("  [STATUS] Transition [%d/%d]: Init-M(%s)-T(%s)" % (t_index, len(self.transition_dic), moving_msg_short, t_key))
 				print("  [STATUS] Strategy   [%d/%d]: F(%s)" % (int(strategy), len(self.fuzzing_strategy), util.h2msg_to_str(fuzz_msg)))
 				dosCheckStartTime = now
+				# Trying multiple sockets
 				self.dosChecksocketOpenNum = 10
 				inter = 0
 				for index in tqdm(range(self.dosChecksocketOpenNum)):
@@ -802,33 +796,27 @@ user-agent:" + user_agent_var + "\n"
 						sockBuf = self.open_socket(dst_ip=self.dst_ip)
 						socketArr.append(sockBuf)
 
-						print("SENDING INITIAL MSG")
 						### SENDING INITIAL MSG ###
 						ans = None
 						ans, unans = sockBuf.sr(init_msg, inter=inter, verbose=0)
-						print("len of ans : %d" % len(ans))
 
 
-						print("SENDING STATE MOVING MSG")
 						### SENDING STATE MOVING MSG ###
 						for mov_msg in mov_msg_list:
 							ans = None
 							ans, unans = sockBuf.sr(mov_msg, inter=inter, verbose=0)
-						print("len of ans : %d" % len(ans))
-						if self.check_h2_response(ans, "GO"):
+						if util.check_h2_response(ans, "GO"):
 							print("  [D] GOAWAY frame while state moving. Skip...")
 							break
 
-						print("SENDING FUZZING MSG")
 						### SENDING FUZZING MSG ###
 						if util.h2msg_to_str(t_msg) == "GO":
-							print(" GOAWAY msg sent.")
+							# print(" GOAWAY msg sent.")
 							# When sending GOAWAY, we do not expect any response.
 							sockBuf.send(fuzz_msg)					
 						else:
 							ans = None
 							ans, unans = sockBuf.sr(fuzz_msg, inter=inter, timeout=self.dosCheckWaitTime, verbose=0)
-							print("len of ans : %d" % len(ans))
 
 					except Exception as e:
 						now = time.localtime()
@@ -927,8 +915,7 @@ user-agent:" + user_agent_var + "\n"
 		global frameInfoArr, frameShortInfoArr
 		print("[STEP 3] Reconstructing state machine from json file...")
 
-		# nodes are stored in networkx Digraph. 
-		# transitions are stored in transition_dic
+		# Nodes are stored in networkx Digraph. 
 		with open(self.sm_json) as json_file:
 			data = json.load(json_file)
 			self.current_state = data["initial"]
@@ -937,11 +924,15 @@ user-agent:" + user_agent_var + "\n"
 				self.graph.add_node(state)
 			
 			for t_info in data["transitions"]:
-				# edge = (t_info["source"], t_info["dest"])
+				edge = (t_info["source"], t_info["dest"])
 				self.graph.add_edge(t_info["source"], t_info["dest"])
 				trigger = t_info["trigger"]
-				msg_sent = trigger.split("/")[0].replace(" ", "")
-				msg_rtime = trigger.split("/")[-1].replace("\n", "").replace(" ", "")
+				### Prev. version trigger
+				# msg_sent = trigger.split("/")[0].replace(" ", "")
+				# msg_rtime = trigger.split("/")[-1].replace("\n", "").replace(" ", "")
+				### New version trigger
+				msg_sent = trigger.split(" => ")[0].replace(" ", "")
+				msg_rtime = trigger.split(" => ")[-1].replace("\n", "").replace(" ", "")
 				for h2msg_sent in messages:
 					if msg_sent == util.h2msg_to_str(h2msg_sent):
 						msg_sent = h2msg_sent
@@ -949,7 +940,13 @@ user-agent:" + user_agent_var + "\n"
 				if type(msg_sent) == type(""):
 					print("[Error] recover_sm(): not maching msg error")
 
+				# Transition infomration are stored in transition_dic.
+				# Each key is source state -> dest state, where its corresponding value is
+				# a tuple of (1) message sent for the transition and (2) response with time.
+				# The tuple is used for making fuzzing test cases and monitoring later 
+				# (t_msg as seed, msg_rtime as monitoring).
 				self.transition_dic[t_info["source"]+"->"+t_info["dest"]] = [msg_sent, msg_rtime]
+
 
 		if len(self.graph.nodes) > 0:
 			print("  [+] Reconstruction done!")
