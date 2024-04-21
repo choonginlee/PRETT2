@@ -38,17 +38,6 @@ def signal_handler(sig, frame):
 		print('[-] multiple times of Ctrl+C!')
 	sys.exit(0)
 
-class Tee(object):
-	def __init__(self, *files):
-	   self.files = files
-	def write(self, obj):
-		for f in self.files:
-			f.write(obj)
-			f.flush() # If you want the output to be visible immediately
-	def flush(self) :
-		for f in self.files:
-			f.flush()
-
 class Http2fuzz:
 	def __init__(self, current_state = "init", dst_ip = 'localhost', init_time = None, pcap = None, sm_json = None):
 		### General ###
@@ -72,20 +61,17 @@ class Http2fuzz:
 		self.ssl_ctx = None
 		self.txcount = -1
 
-		### Fuzzing configuration ###
-		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9,10]
-		self.timeOutNum = 600
-		self.dosChecksocketOpenNum = 300
-		self.dosCheckWaitTime = 6
-		self.frame_number_dict = None
-
 		### Server binary tokens ###
 		self.token_db = None
+
+		### Fuzing
+		self.vulnerabilities_file = './vulnerabilities.txt'
+		self.fuzzing_count = 20 # how many times fuzzing is done for each transition
 
 	def ssl_setting(self):
 		# Building the SSL context
 		self.ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-		self.ssl_ctx.keylog_filename = "/home/oren/sslkey_scapy.txt"
+		#self.ssl_ctx.keylog_filename = ""
 		self.ssl_ctx.set_ciphers(':'.join([  # List from ANSSI TLS guide v.1.1 p.51
                 		'ECDHE-ECDSA-AES256-GCM-SHA384',
                 		'ECDHE-RSA-AES256-GCM-SHA384',
@@ -123,7 +109,7 @@ class Http2fuzz:
 		firstSETTINGS = h2.H2Frame()/h2.H2SettingsFrame()
 		max_frm_sz = (1 << 24) - 1
 		max_hdr_tbl_sz = (1 << 16) - 1
-		win_sz = (1 << 31) - 1
+		win_sz = random.randint(0, 2000) #(1 << 31) - 1
 		firstSETTINGS.settings = [
     		h2.H2Setting(id = h2.H2Setting.SETTINGS_ENABLE_PUSH, value=1),
     		h2.H2Setting(id = h2.H2Setting.SETTINGS_INITIAL_WINDOW_SIZE, value=win_sz),
@@ -135,113 +121,6 @@ class Http2fuzz:
 		self.current_state = 'init'
 		return prefaceFrame, firstSETTINGS
 
-
-# 	def make_frame_array(self, frameStrBuf):
-# 		global dst_ip
-# 		# move_state_msg_arr: ['HE-SE-SE', DE-PE, ....]
-# 		# send_frame_seq: 'HE-DE'
-# 		frameDashStrArr = []
-# 		if (str(type(frameStrBuf)) == "<type 'str'>"):
-# 			frameDashStrArr.append(frameStrBuf)
-# 		else:
-# 			frameDashStrArr.extend(frameStrBuf)
-	
-# 		frameStrArr = []
-# 		for frameEachSeq in frameDashStrArr:
-# 			splitFrameEachSeq = frameEachSeq.split('-')
-# 			for splitFrameEach in splitFrameEachSeq:
-# 				frameStrArr.append(splitFrameEach)
-	
-# 		# frameArr = []
-# 		srv_max_frm_sz = 1<<14
-# 		srv_hdr_tbl_sz = 4096
-# 		srv_max_hdr_tbl_sz = 0
-# 		srv_global_window = 1<<14
-# 		srv_max_hdr_lst_sz = 0
-	
-# 		h2seq = h2.H2Seq()
-# 		# H2DataFrame
-# 		# H2HeadersFrame
-# 		# H2SettingsFrame
-# 		# H2PushPromiseFrame
-# 		# H2PingFrame
-# 		# H2PriorityFrame
-# 		# H2ResetFrame
-# 		# H2GoAwayFrame
-# 		# H2WindowUpdateFrame
-# 		# H2ContinuationFrame
-	
-# 		for frameValue in frameStrArr:
-# 			if frameValue == 'DA':
-# 				dataFrameBuf = h2.H2Frame()/h2.H2DataFrame()
-# 				dataFrameBuf.stream_id = 1
-# 				h2seq.frames.append(dataFrameBuf)
-	
-# 			elif frameValue == 'HE':
-# 				msg = "GET"
-# 				args = "/index.html"
-	
-# 				headerArgs = ":method "+ msg + "\n\
-# :path "+ args +"\n\
-# :authority "+ dst_ip +"\n\
-# :scheme https\n\
-# accept-encoding: gzip, deflate\n\
-# accept-language: ko-KR\n\
-# accept: text/html\n\
-# user-agent: Scapy HTTP/2 Module\n"
-
-# 				tblhdr = h2.HPackHdrTable()
-# 				qry_frontpage = tblhdr.parse_txt_hdrs(
-# 				headerArgs,
-# 				stream_id=1,
-# 				max_frm_sz=srv_max_frm_sz,
-# 				max_hdr_lst_sz=srv_max_hdr_lst_sz,
-# 				is_sensitive=lambda hdr_name, hdr_val: hdr_name in ['cookie'],
-# 				should_index=lambda x: x in [
-# 						'x-requested-with', 
-# 						'user-agent', 
-# 						'accept-language',
-# 						':authority',
-# 						'accept',
-# 						]
-# 					)
-# 				h2seq.frames.append(qry_frontpage.frames[0])
-	
-# 			elif frameValue == 'SE':
-# 				settingFrameBuf = h2.H2Frame()/h2.H2SettingsFrame()	
-# 				max_frm_sz = (1 << 24) - 1
-# 				max_hdr_tbl_sz = (1 << 16) - 1
-# 				win_sz = (1 << 31) - 1
-# 				settingFrameBuf.settings = [
-# 					h2.H2Setting(id = h2.H2Setting.SETTINGS_ENABLE_PUSH, value=0),
-# 					h2.H2Setting(id = h2.H2Setting.SETTINGS_INITIAL_WINDOW_SIZE, value=win_sz),
-# 					h2.H2Setting(id = h2.H2Setting.SETTINGS_HEADER_TABLE_SIZE, value=max_hdr_tbl_sz),
-# 					h2.H2Setting(id = h2.H2Setting.SETTINGS_MAX_FRAME_SIZE, value=max_frm_sz),
-# 				]
-# 				h2seq.frames.append(settingFrameBuf)
-# 			elif frameValue == 'PU':
-# 				h2seq.frames.append(h2.H2Frame()/h2.H2PushPromiseFrame())
-	
-# 			elif frameValue == 'PI':
-# 				h2seq.frames.append(h2.H2Frame()/h2.H2PingFrame())
-	
-# 			elif frameValue == 'PR':
-# 				h2seq.frames.append(h2.H2Frame()/h2.H2PriorityFrame())
-	
-# 			elif frameValue == 'RS':
-# 				h2seq.frames.append(h2.H2Frame()/h2.H2ResetFrame())
-	
-# 			elif frameValue == 'GO':
-# 				h2seq.frames.append(h2.H2Frame()/h2.H2GoAwayFrame())
-	
-# 			elif frameValue == 'WI':
-# 				h2seq.frames.append(h2.H2Frame()/h2.H2WindowUpdateFrame())
-	
-# 			elif frameValue == 'CO':
-# 				h2seq.frames.append(h2.H2Frame()/h2.H2ContinuationFrame())
-	
-# 		return h2seq
-
 	def open_socket(self, dst_ip):
 		H2_CLIENT_CONNECTION_PREFACE = hex_bytes('505249202a20485454502f322e300d0a0d0a534d0d0a0d0a')
 		
@@ -250,6 +129,7 @@ class Http2fuzz:
 		assert len(l) > 0, 'No address found :('
 	
 		s = socket.socket(l[0][0], l[0][1], l[0][2])
+		s.settimeout(6)
 		s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		if hasattr(socket, 'SO_REUSEPORT'):
 			s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
@@ -287,7 +167,6 @@ class Http2fuzz:
 			mov_msg_list.append(sub_msg)
 		return mov_msg_list
 
-
 	def make_fuzzing_frame_seq(self, frameStrBuf):
 		# Below codes used for binary token used
 		httpSchemes = self.token_db
@@ -302,11 +181,10 @@ class Http2fuzz:
 		# print("[DEBUG] frameStrArr :", frameStrArr)
 	
 		h2seq = h2.H2Seq()
-	
 		for frameValue in frameStrArr:
+			
 			# For removing frame length (from DA (1e) to DA)
 			frameValue = frameValue.split("(")[0].rstrip(" ")
-
 			if frameValue == 'DA':
 				dataFrameBuf = h2.H2Frame()/h2.H2DataFrame()
 				# while True:
@@ -337,13 +215,13 @@ class Http2fuzz:
 	
 			elif frameValue == 'SE':
 				settingFrameBuf = h2.H2Frame()/h2.H2SettingsFrame()	
-
+				
 				frame_size_buf = self.makeRandomValue()
 				frame_header_table_size_buf = self.makeRandomValue()
 				window_size_buf = self.makeRandomValue()
 				max_stream_buf = self.makeRandomValue()
 				max_header_list_size_buf = self.makeRandomValue()
-				settings_enable_push = self.makeRandomValue()
+				settings_enable_push = 1#self.makeRandomValue()
 				settingFrameBuf.settings = [
 					h2.H2Setting(id = h2.H2Setting.SETTINGS_MAX_CONCURRENT_STREAMS, value=max_stream_buf),
 					h2.H2Setting(id = h2.H2Setting.SETTINGS_MAX_HEADER_LIST_SIZE, value = max_header_list_size_buf),
@@ -359,6 +237,7 @@ class Http2fuzz:
 
 				h2seq.frames.append(settingFrameBuf)
 			elif frameValue == 'PU':
+
 				pushPromiseFrameBuf = h2.H2Frame()/h2.H2PushPromiseFrame()
 
 				max_promise_stream_id = self.makeRandomValue()
@@ -417,7 +296,7 @@ class Http2fuzz:
 			elif frameValue == 'WI':
 				windowUpdateFrameBuf = h2.H2Frame()/h2.H2WindowUpdateFrame()
 				windowUpdateFrameBuf.stream_id = self.makeRandomValue()
-				windowUpdateFrameBuf['HTTP/2 Window Update Frame'].win_size_incr = self.makeRandomValue()
+				windowUpdateFrameBuf['HTTP/2 Window Update Frame'].win_size_incr = random.randint(0, 5) # self.makeRandomValue()
 
 				# windowUpdateFrameBuf.len = windowUpdateFrameBuf.__len__()
 				h2seq.frames.append(windowUpdateFrameBuf)
@@ -452,62 +331,15 @@ class Http2fuzz:
 				rawFrame = packet.Raw(rawHexBytes)
 				h2seq.frames.append(rawFrame)
 	
+		#print("h2seq")
+		#print(h2seq.show())
 		return h2seq
 
-
-	"""
-	def make_fuzzing_packet(self, strategy):
-		frameShortInfoArr_forFuzz = ['DA','HE','PR','SE','PU','PI','WI','CO','RA']
-		# 0,1,2,3,4,5,6,7 -> frameShortInfoArr each frame sent
-
-		fuzzing_frame_seq = None
-		# strategy: 0 make frame field mutation
-		self.txcount += 1
-		print("[DEBUG] make_fuzzing_packet(): txcount = %d" % int(self.txcount))
-		if strategy < 9:
-			frameStr = frameShortInfoArr_forFuzz[strategy]
-			print("[+] Single frame to be sent : %s" % frameStr)
-			fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
-			# fuzzing_frame_seq.show()
-
-		else:
-			frameStr = ''
-			# 0 to end of List
-			for i in range(0, (len(frameShortInfoArr_forFuzz))):
-				frameStr += (frameShortInfoArr_forFuzz[i]+'-')
-			frameStr = frameStr[:-1]
-			print("[+] All frames to be sent : %s" % frameStr)
-			fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
-			# fuzzing_frame_seq.show()
-
-		# elif strategy == 10:
-		# 	frameNum = self.txcount
-		# 	frameStr = ''
-		# 	for i in range(0, frameNum):
-		# 		frameIndex = random.randint(0, len(frameShortInfoArr_forFuzz) - 1)
-		# 		frameStr += (frameShortInfoArr_forFuzz[frameIndex]+'-')
-		# 	frameStr = frameStr[:-1]
-		# 	print("[+] Random frames to be sent : %d frames" % len(frameStr))
-		# 	fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
-
-		# To check crash added ping frame
-		# fuzzing_frame_seq.frames.append(h2.H2Frame()/h2.H2PingFrame())
-		# fuzzing_frame_seq.frames.append(h2.H2Frame()/h2.H2PingFrame())
-		return fuzzing_frame_seq
-	"""
-
-	def make_fuzzing_message(self, t_msg):
-		"""
-		# @Isa we need to generate test cases here.
-		# Currently I generate a template in the format of frameStr (i.e. HE-DA) 
-		# using t_msg as seed and make_fuzzing_frame_seq() to fill randomized value 
-		# in each frame.
-		# - t_msg is the message we stored in state machine reconstruction
-		"""
+	def make_fuzzing_message(self, msg):
 		frameStr = ''
-		for msg in t_msg: # for each frame in t_msg
-			msg_short_str = util.h2msg_to_str(msg)
-			frameStr += msg_short_str+'-'
+		for frm in msg: # for each frame in t_msg
+			frm_short_str = util.h2msg_to_str(msg)
+			frameStr += frm_short_str+'-'
 		frameStr = frameStr[:-1]
 		fuzzing_frame_seq = self.make_fuzzing_frame_seq(frameStr)
 		return fuzzing_frame_seq
@@ -691,198 +523,93 @@ user-agent:" + user_agent_var + "\n"
 		jsonFileDescripter.write('\t},\n')
 		jsonFileDescripter.flush()
 
-	def count_frames(self, frame_seq, crash_check = 0):
-		if crash_check == 1:
-			# settings is 4
-			self.frame_number_dict[4] = (self.frame_number_dict[4] + 1)
-			return
-
-		for frame in frame_seq.frames:
-			try:
-				self.frame_number_dict[frame.type] = (self.frame_number_dict[frame.type] + 1)
-			except:
-				self.frame_number_dict[10] = (self.frame_number_dict[10] + 1)
-
-	def print_count_frames(self):
-		global frameShortInfoArr
-
-		print("[+] frame total send number:")
-		for index, frameStr in enumerate(frameShortInfoArr):
-			print ("[%s] : %d" % (frameStr, self.frame_number_dict[index]))
-
-	def set_strategy(self):
-	 	# strategy 10 is making 1 to 1000 frames sequence, it makes error in Nginx and H2O
-		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9,10]
-		self.dosChecksocketOpenNum = 300
-	# 	if self.target_binary == 'Apache2.4.29':
-	# 		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9,10]
-	# 		self.dosChecksocketOpenNum = 300
-	# 	elif self.target_binary == 'Nginx1.14.0':
-	# 		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9]
-	# 		self.dosChecksocketOpenNum = 1200
-	# 	elif self.target_binary == 'H2O2.2.4':
-	# 		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9]
-	# 		self.dosChecksocketOpenNum = 1200
-	# 	elif self.target_binary == 'NodeJS12.18.4':
-	# 		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9]
-	# 		self.dosChecksocketOpenNum = 2030
-	# 	elif self.target_binary == 'OpenLiteSpeed1.6.21':
-	# 		self.fuzzing_strategy = [0,1,2,3,4,5,6,7,8,9]
-	# 		self.dosChecksocketOpenNum = 300
-
-
-
 	def fuzzing_run(self):
-		self.frame_number_dict = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 		self.ssl_setting()
 		self.start_write_json_logging()
 		self.get_token_dict()
-		self.set_strategy()
-
-		prefaceFrame, firstSETTINGS = self.initframe_setting()
-		init_msg = h2.H2Seq()
-		init_msg.frames = [prefaceFrame, firstSETTINGS]		
-
-		print("[STEP 4] Start Fuzzing...")
 
 		td_traverse = OrderedDict()
 		t_index = 0
+		print("\n[STEP 4] Starting the fuzzer...")
+		print("  [INFO] HTTP/2 messages to reproduce the discovered vulnerabilities will be saved in the "+ self.vulnerabilities_file +" file")
 		while True:
 			if len(td_traverse) == 0:
 				if t_index == len(self.transition_dic):
 					print("  [+] Finished all %d transitions!" % len(self.transition_dic))
-					# sys.exit()
+					sys.exit()
 				td_traverse = self.transition_dic.copy()
 				t_index = 0
 			t_index += 1
 			t_key, t_msg_info = self.get_next_transition(td_traverse)
 			t_msg = t_msg_info[0]
-			t_msg_rtime = t_msg_info[1]
 
 			mov_msg_list = self.get_moving_frame(t_key)
-
-			self.fuzzing_strategy = [1]
-
-			for strategy in self.fuzzing_strategy:
-				# fuzz_msg = self.make_fuzzing_packet(strategy) # prev. version (~2021)
-				fuzz_msg = self.make_fuzzing_message(t_msg)
-				totalelapsedTime = 0
-				timeOutElapsedTime = 0
-				socketArr = []
-				dosChecker = False
-				errorOutChecker = False
-
-				startTime = time.time()
-				now = time.localtime()
-				moving_msg_short = "" # for debugging
-				for mov_msg in mov_msg_list:
-					moving_msg_short += util.h2msg_to_str(mov_msg) + "|"
-				if len(moving_msg_short) > 0 and moving_msg_short[-1] == "|":
-					moving_msg_short = moving_msg_short[:-1]
-				print("  [STATUS] Transition [%d/%d]: Init-M(%s)-T(%s)" % (t_index, len(self.transition_dic), moving_msg_short, t_key))
-				print("  [STATUS] Strategy   [%d/%d]: F(%s)" % (int(strategy), len(self.fuzzing_strategy), util.h2msg_to_str(fuzz_msg)))
-				dosCheckStartTime = now
-				# Trying multiple sockets
-				self.dosChecksocketOpenNum = 10
-				inter = 0
-				for index in tqdm(range(self.dosChecksocketOpenNum)):
-					# if int(elapsedMiliSec) > dosCheckWaitTime:
-					# 	dosChecker = True
-					# 	break
-					interConnectionStartTime = time.time()
-
-					try:
-						sockBuf = None
-						sockBuf = self.open_socket(dst_ip=self.dst_ip)
-						socketArr.append(sockBuf)
-
-						### SENDING INITIAL MSG ###
-						ans = None
-						ans, unans = sockBuf.sr(init_msg, inter=inter, verbose=0)
-
-
-						### SENDING STATE MOVING MSG ###
-						for mov_msg in mov_msg_list:
-							ans = None
-							ans, unans = sockBuf.sr(mov_msg, inter=inter, verbose=0)
-						if util.check_h2_response(ans, "GO"):
-							print("  [D] GOAWAY frame while state moving. Skip...")
-							break
-
-						### SENDING FUZZING MSG ###
-						if util.h2msg_to_str(t_msg) == "GO":
-							# print(" GOAWAY msg sent.")
-							# When sending GOAWAY, we do not expect any response.
-							sockBuf.send(fuzz_msg)					
-						else:
-							ans = None
-							ans, unans = sockBuf.sr(fuzz_msg, inter=inter, timeout=self.dosCheckWaitTime, verbose=0)
-
-					except Exception as e:
-						now = time.localtime()
-						# print("[!] Error occured on fuzzing multiple connection %02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec))
-						print("Exception message: {}".format(e))
-
-						if str(e) == '[Errno 0] Error':
-							# print ('Errno Zero')
-							print("[!] "+str(e))
-						elif str(e) == '[Errno 104] Connection reset by peer':
-							# print ('Errno One hundred four')
-							print("[!] "+str(e))
-						elif str(e) == '[Errno 111] Connection refused':
-							# print ('Errno One hundred eleven')
-							print("[!] "+str(e)+" fuzzer shutdown!")
-							# time.sleep(1)
-							self.write_binary_file(mov_msg_list, fuzz_msg, dosCheckStartTime, "Shutdown")
-							self.fuzzer_shutdown_error_no111()
-						# print (e)
-						errorOutChecker = True
-
-					if errorOutChecker == True:
-						self.write_binary_file(mov_msg_list, fuzz_msg, dosCheckStartTime, "Error")
-						break
-
-					timestamp = 0.0
-
-					if ans is not None:
-						timestamp = ans[0][1].time - ans[0][0].sent_time
-						# print("    [ ] ElapsedTime %f" % timestamp)
-
-					# interConnectionEndTime = time.time()
-					# endTime = time.time()
-
-					# elapsedMiliSec = endTime - startTime
-					# # print("[+] Connection Number : %d, timeElapse %f" % (index, elapsedMiliSec))
-
-					if timestamp > self.dosCheckWaitTime:
-						dosChecker = True
-						break
 			
-				if dosChecker == True:
-					self.write_binary_file(mov_msg_list, fuzz_msg, dosCheckStartTime, "DoS")
-					print("    [+] DoS : yes *********************************************")
-					time.time(10)
-				else:
-					# print("    [ ] DoS : no")
-					pass
+			#print(util.h2msg_to_str(t_msg))
+			#print("Transition Message: "+util.h2msg_to_str(t_msg))
+			for i in tqdm(range(self.fuzzing_count)):
+				self.exploit_slowloris_vuln(mov_msg_list, t_msg, self.open_socket(dst_ip=self.dst_ip))
+		
 
-				# now = time.localtime()
-				# print("[+] Dos on multiple connection checking End %02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec))
+	
+	def exploit_slowloris_vuln(self, moving_messages, t_msg, sockBuf):
+		'''
+		The method sends the following messages in order:
+		1. Initial message: Preface + Settings
+			The Preface is always static. 
+			The first Settings frame has fuzzed (random) values, such as SETTINGS_INITIAL_WINDOW_SIZE.
+			Which parameters should be fuzzed and the value range can be configured.
+		2. Moving messages (The messages that are sent to reach the particular transition)
+			All the moving messages are fuzzed. 
+			To trigger some vulnerabilities, it might be necessary for all the messages (not just one) to have a special value.
+		3. The transition message.
+			The transition message is sent as-is. 
+			If this transition does not end with the 'final' state, it will eventually be fuzzed.
+			For example, consider this simple SM: "A -transition1-> B -transition2-> C
+			When transition2 becomes the new transition message, transition1 becomes one of the moving messages and gets fuzzed.
+		'''
 
-				# print ("[+] Socket reset start")
-				for index, sockValue in enumerate(socketArr):
-					try:
-						sockValue.send(h2.H2Frame()/h2.H2GoAwayFrame())
-						# print("    [+] Reset Successful")
-					except Exception as e:
-						print ("[!] Error occured in connection %d while reset via GOAWAY" % index)
-						continue
+		init_msg = h2.H2Seq()
+		preface, settings = self.initframe_setting() 
+		init_msg.frames = [preface, settings]
+		
+		fuzzed_moving_messages = []
+		for msg in moving_messages:
+				msg_fuzz = self.make_fuzzing_message(msg)
+				fuzzed_moving_messages.append( msg_fuzz )
 
-				# print("[-] packet number : %d End\n" % int(self.txcount))
-				# time.sleep(1)
-				# break
+		try:
+			#print("Sending...")
+			#init_msg.show()
+			sockBuf.send(init_msg)
+			for msg_fuzz in fuzzed_moving_messages:
+				#msg_fuzz.show()
+				sockBuf.send(msg_fuzz)
+			#t_msg.show()
+			sockBuf.send(t_msg)
 
-				
+			while True:
+				received_packet = sockBuf.recv()
+				#print("\nReceived packets: ")
+				#print(received_packet.show())
+		except Exception as e:
+   			# the server closes the connection after the configured timeout (5s). This is normal behavior.
+			if str(e) == 'Underlying stream socket tore down':
+				pass
+			# the session is idle for more than 6 seconds. This is vulnerability.
+			elif str(e) == 'The read operation timed out':
+				self.record_the_vulnerability(init_msg, fuzzed_moving_messages, t_msg)
+
+
+	def record_the_vulnerability(self, init_msg, fuzzed_moving_messages, t_msg):
+		with open(self.vulnerabilities_file,'a') as vulnerabilities_file:
+					vulnerabilities_file.write('### Vulnerability found. Messages to reproduce:\n')
+					vulnerabilities_file.write( init_msg.show(dump=True) + '\n')
+					for msg_fuzz in fuzzed_moving_messages:
+						vulnerabilities_file.write( msg_fuzz.show(dump=True) + '\n')
+					vulnerabilities_file.write( t_msg.show(dump=True) + '\n')
+
+
 	def makeRandomValue(self):
 		returnValue = None
 
@@ -908,12 +635,11 @@ user-agent:" + user_agent_var + "\n"
 		elif randIndex == 2:
 			returnValue = random.choice(percentValueArray)
 
-		return returnValue
-
+		return random.randint(0,500) #returnValue
 
 	def recover_sm(self, messages):
 		global frameInfoArr, frameShortInfoArr
-		print("[STEP 3] Reconstructing state machine from json file...")
+		print("\n[STEP 3] Reconstructing state machine from json file...")
 
 		# Nodes are stored in networkx Digraph. 
 		with open(self.sm_json) as json_file:
@@ -1005,7 +731,6 @@ def main():
 	pcapname = pcap_path.split("/")[-1]
 	# f = open('./log/'+pcapname+"_"+dt+'.txt', 'w')
 	# original = sys.stdout
-	# sys.stdout = Tee(sys.stdout, f)
 	signal.signal(signal.SIGINT, signal_handler)
 	http2fuzz_obj = Http2fuzz(dst_ip = dst_ip, init_time=dt,
 		pcap = pcap_path,
@@ -1021,11 +746,6 @@ def main():
 	http2fuzz_obj.recover_sm(http2_basic_messages)
 	http2fuzz_obj.fuzzing_run()
 
-
-	# print(len(fuzzFrameSeq.frames))
-	# fuzzFrameSeq.show()
-	# elapsedTimeTest = 6
-	# receiveFrameArr, elapsedTime = send_receive_http2_time_maketimeout(move_state_frame, frame_db, elapsedTimeTest)
 
 if __name__ == "__main__":
 	main()
