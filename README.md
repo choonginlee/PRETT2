@@ -1,7 +1,7 @@
 PRETT2
 =============
 PRETT2 is a framework designed to analyze HTTP/2 DoS via automated protocol reverse engineering and stateful fuzzing.  
-This project has been published in the proceedings of the [29th European Symposium on Research in Computer Security (ESORICS 2024)](https://esorics2024.org/).  
+This project has been published in the proceedings of the 29th European Symposium on Research in Computer Security ([ESORICS 2024])(https://esorics2024.org/).  
 The full paper is available at [Springer](https://link.springer.com/chapter/10.1007/978-3-031-70890-9_1) and can also be accessed [here](/PRETT2_ESORICS_paper.pdf).
 
 <details>
