@@ -1,7 +1,34 @@
-PRETT/2
+PRETT2
 =============
+PRETT2 is a framework designed to analyze HTTP/2 DoS via automated protocol reverse engineering and stateful fuzzing.  
+This project has been published in the proceedings of the 29th European Symposium on Research in Computer Security (ESORICS 2024).  
+The [full paper](https://link.springer.com/chapter/10.1007/978-3-031-70890-9_1) can be accessed at Springer.
 
-A stateful fuzzing framework designed to analyze HTTP/2 DoS via automated protocol reverse engineering and multiplexed fuzzing.
+<details>
+  <summary>BibTeX</summary>
+
+```bibtex
+@InProceedings{10.1007/978-3-031-70890-9_1,
+author="Lee, Choongin
+and Jafarov, Isa
+and Dietrich, Sven
+and Lee, Heejo",
+editor="Garcia-Alfaro, Joaquin
+and Kozik, Rafa{\l}
+and Chora{\'{s}}, Micha{\l}
+and Katsikas, Sokratis",
+title="PRETT2: Discovering HTTP/2 DoS Vulnerabilities via Protocol Reverse Engineering",
+booktitle="Computer Security -- ESORICS 2024",
+year="2024",
+publisher="Springer Nature Switzerland",
+address="Cham",
+pages="3--23",
+abstract="",
+isbn="978-3-031-70890-9"
+}
+```
+</details> 
+
 
 ## Installation (OS: Ubuntu 18.04 LTS)
 ### 0. Prerequisite: Python3.8
